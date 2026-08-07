@@ -32,13 +32,15 @@ export const AGENT_RULES = `## Drafteine structure contract
 
 This project's file structure is governed by structure.dft. Rules:
 
-1. Before creating files, declare them in structure.dft. Folders end
-   with /, two-space indentation nests, annotations trail the name
-   (@strict, @max-lines(n), @forbidden, @count(n), @optional).
-2. After every work session run: npx drafteine check --all
-3. Reconcile membership drift with: npx drafteine accept structure.dft
-   and review the diff. Never regenerate the whole draft, targeted
-   edits only.
+1. Before creating any file, declare it in structure.dft first and show
+   that draft diff for authorization. Folders end with /, two-space
+   indentation nests, annotations trail the name (@strict,
+   @max-lines(n), @forbidden, @count(n), @optional).
+2. Run npx drafteine check --all before starting work and again after
+   every change set.
+3. Never run drafteine accept autonomously. Accepting drift into the
+   contract is a decision for a human reviewer: propose the change and
+   wait. Never regenerate the whole draft, targeted edits only.
 4. Policy violations (@max-lines, @forbidden, @count) are decisions:
    fix reality or change the annotation deliberately, never both
    casually.
