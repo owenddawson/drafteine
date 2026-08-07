@@ -1,0 +1,332 @@
+/* Drafteine — espresso workbench.
+   Tokens: warm brown-black surfaces; amber = folders & actions (the caffeine),
+   blueprint blue = files & plan (the drafting). */
+
+:root {
+  --bg: #171310;
+  --surface: #1e1915;
+  --surface-2: #241e19;
+  --line: #33291f;
+  --ink: #eae1d3;
+  --muted: #94856f;
+  --faint: #6b5f4e;
+  --amber: #e8a33d;
+  --amber-dim: #a97928;
+  --blue: #8fb4d4;
+  --blue-dim: #5d7f9c;
+  --error: #e06c5b;
+  --warning: #d4a13d;
+  --ok: #9ab87a;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
+  --ui: "Space Grotesk", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 15px;
+}
+
+/* ---------- top bar -------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  padding: 0.85rem 1.4rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse 60% 120% at 8% 0%, rgba(232, 163, 61, 0.07), transparent),
+    var(--bg);
+}
+
+.wordmark {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.wordmark-draft { color: var(--blue); }
+.wordmark-eine { color: var(--amber); }
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.syntax-help {
+  margin-left: auto;
+  position: relative;
+  font-size: 0.82rem;
+}
+
+.syntax-help summary {
+  cursor: pointer;
+  color: var(--muted);
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.7rem;
+  user-select: none;
+}
+.syntax-help summary::-webkit-details-marker { display: none; }
+.syntax-help[open] summary,
+.syntax-help summary:hover { color: var(--amber); border-color: var(--amber-dim); }
+
+.syntax-card {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 20;
+  width: 24rem;
+  max-width: 80vw;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 1rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  line-height: 1.5;
+  color: var(--ink);
+}
+.syntax-card code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--amber);
+  background: rgba(232, 163, 61, 0.08);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+
+/* ---------- workbench layout ----------------------------------------- */
+
+.workbench {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.pane { min-height: 0; display: flex; flex-direction: column; }
+
+.pane-editor { border-right: 1px solid var(--line); }
+
+.pane-right {
+  display: grid;
+  grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
+  background: var(--surface);
+}
+
+.pane-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane-plan { border-top: 1px solid var(--line); }
+
+.pane-title {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--faint);
+  padding: 0.7rem 1.2rem 0.5rem;
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .workbench { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .pane-editor { border-right: none; border-bottom: 1px solid var(--line); }
+}
+
+/* ---------- editor ---------------------------------------------------- */
+
+#editor { flex: 1; min-height: 0; }
+
+.cm-editor {
+  height: 100%;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.cm-editor.cm-focused { outline: none; }
+.cm-scroller { line-height: 1.75; font-family: var(--mono); }
+.cm-content { caret-color: var(--amber); padding: 0.6rem 0; }
+/* gutter surface colors live in editor.js (espressoTheme) — a registered
+   CodeMirror theme outranks the library's light base theme; plain CSS doesn't */
+.cm-activeLine { background: rgba(232, 163, 61, 0.045); }
+.cm-activeLineGutter { background: rgba(232, 163, 61, 0.07); color: var(--muted); }
+.cm-selectionBackground { background: rgba(143, 180, 212, 0.18) !important; }
+.cm-cursor { border-left-color: var(--amber); }
+
+/* semantic tokens */
+.df-folder { color: var(--amber); font-weight: 600; }
+.df-slash { color: var(--amber-dim); }
+.df-file { color: var(--ink); }
+.df-ext { color: var(--blue); }
+.df-annotation { color: var(--blue-dim); font-style: italic; }
+.df-comment { color: var(--faint); font-style: italic; }
+
+/* lint */
+.cm-lintRange-error {
+  background: none;
+  border-bottom: 1.5px dotted var(--error);
+  padding-bottom: 1px;
+}
+.cm-lintRange-warning {
+  background: none;
+  border-bottom: 1.5px dotted var(--warning);
+  padding-bottom: 1px;
+}
+.cm-gutter-lint .cm-lint-marker-error,
+.cm-gutter-lint .cm-lint-marker-warning { width: 0.7em; height: 0.7em; }
+.cm-tooltip {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--ui);
+  border-radius: 6px;
+}
+.cm-tooltip.cm-tooltip-lint { padding: 0.15rem 0.3rem; }
+
+/* ---------- preview tree ---------------------------------------------- */
+
+.tree {
+  flex: 1;
+  overflow: auto;
+  padding: 0.2rem 1.2rem 1rem;
+  font-family: var(--mono);
+  font-size: 13.5px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.22rem 0.4rem;
+  border-radius: 5px;
+  min-width: 0;
+}
+.tree-row:hover { background: rgba(234, 225, 211, 0.04); }
+
+.tree-guide {
+  flex: none;
+  width: 1.1rem;
+  align-self: stretch;
+  border-left: 1px solid var(--line);
+  margin-left: 0.55rem;
+}
+
+.tree-icon { flex: none; width: 1rem; height: 1rem; display: grid; place-items: center; }
+.tree-icon svg { width: 100%; height: 100%; }
+.icon-folder svg path { fill: var(--amber); }
+.icon-file svg path { fill: rgba(143, 180, 212, 0.28); stroke: var(--blue); stroke-width: 0.8; }
+.icon-file svg .fold { stroke: var(--blue); fill: none; }
+.icon-warn svg path { fill: var(--error); }
+.icon-warn svg .mark { fill: var(--bg); }
+
+.tree-name { white-space: nowrap; }
+.tree-row.is-error .tree-name { color: var(--muted); text-decoration: line-through; }
+.tree-row.is-warning .tree-name { color: var(--warning); }
+
+.tree-chip {
+  flex: none;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--blue-dim);
+  border: 1px solid rgba(93, 127, 156, 0.35);
+  border-radius: 999px;
+  padding: 0 0.5em;
+  line-height: 1.5;
+}
+
+.tree-error-note {
+  font-family: var(--ui);
+  font-size: 0.75rem;
+  color: var(--error);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-note {
+  color: var(--faint);
+  font-family: var(--ui);
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  max-width: 34ch;
+  line-height: 1.5;
+}
+
+/* ---------- plan ------------------------------------------------------ */
+
+.plan-title { display: flex; align-items: center; gap: 0.8rem; }
+.plan-count { text-transform: none; letter-spacing: 0.03em; color: var(--muted); font-weight: 400; }
+
+.copy-btn {
+  margin-left: auto;
+  font-family: var(--ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--amber);
+  background: rgba(232, 163, 61, 0.08);
+  border: 1px solid var(--amber-dim);
+  border-radius: 6px;
+  padding: 0.22rem 0.7rem;
+  cursor: pointer;
+}
+.copy-btn:hover { background: rgba(232, 163, 61, 0.16); }
+.copy-btn:disabled { opacity: 0.4; cursor: default; }
+.copy-btn:focus-visible,
+.syntax-help summary:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.plan {
+  flex: 1;
+  overflow: auto;
+  padding: 0.1rem 1.2rem 1rem;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.plan-row { display: flex; gap: 0.9rem; padding: 0.16rem 0.4rem; align-items: baseline; }
+.plan-verb { flex: none; width: 3.2em; }
+.verb-mkdir { color: var(--amber); }
+.verb-touch { color: var(--blue); }
+.plan-path { color: var(--ink); word-break: break-all; }
+.plan-template { color: var(--blue-dim); font-style: italic; font-size: 0.85em; }
+
+/* ---------- status bar ------------------------------------------------ */
+
+.statusbar {
+  flex: none;
+  border-top: 1px solid var(--line);
+  padding: 0.45rem 1.4rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ok);
+  background: var(--surface);
+}
+.statusbar.has-errors { color: var(--error); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tree-row, .plan-row { animation: settle 160ms ease-out; }
+  @keyframes settle {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+}

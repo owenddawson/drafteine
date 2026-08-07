@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Drafteine configuration",
+  "type": "object",
+  "properties": {
+    "contracts": {
+      "description": "Drafts that check enforces continuously and via check --all.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Path to a draft, checked against the config's own directory."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "draft": {
+                "type": "string",
+                "description": "Path to the draft file."
+              },
+              "root": {
+                "type": "string",
+                "description": "Directory the draft describes. Defaults to the config's directory.",
+                "default": "."
+              }
+            },
+            "required": [
+              "draft"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "templates": {
+      "type": "string",
+      "description": "Template directory. @template(path) values resolve inside it and apply writes their bytes verbatim."
+    },
+    "profiles": {
+      "description": "Named policy presets. Writing @name on an entry behaves as if the expanded annotations were written there. Explicit annotations override profile values.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][\\w-]*$",
+            "description": "Annotation name the profile answers to."
+          },
+          "doc": {
+            "type": "string",
+            "description": "Shown in editor hover and completion."
+          },
+          "expands": {
+            "type": "object",
+            "description": "Annotations the profile carries. Values are a string, an array of items, or null for flags. Profiles may never expand strict or optional, structure stays explicit.",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "properties": {
+              "strict": false,
+              "optional": false
+            }
+          }
+        },
+        "required": [
+          "name",
+          "expands"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "annotations": {
+      "description": "Custom annotation vocabulary. Declared annotations complete and hover like built-ins, and check validates their value shape.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][\\w-]*$",
+            "description": "Annotation name, used as @name in drafts."
+          },
+          "value": {
+            "type": "string",
+            "enum": [
+              "flag",
+              "string",
+              "number"
+            ],
+            "description": "Value shape check enforces. A flag takes no value.",
+            "default": "string"
+          },
+          "doc": {
+            "type": "string",
+            "description": "Shown in editor hover and completion."
+          },
+          "appliesTo": {
+            "type": "string",
+            "enum": [
+              "file",
+              "folder",
+              "both"
+            ],
+            "default": "both",
+            "description": "Which entries the annotation completes on."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

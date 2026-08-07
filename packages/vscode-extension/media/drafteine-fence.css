@@ -1,0 +1,117 @@
+/* Styles for drafteine fenced blocks in the markdown preview. */
+
+.drafteine-fence {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.08));
+  border-radius: 6px;
+  padding: 0.7em 1em;
+  margin: 0.6em 0;
+}
+
+.drafteine-fence .row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: 4px;
+}
+
+.drafteine-fence .guide {
+  flex: none;
+  width: 1rem;
+  align-self: stretch;
+  border-left: 1px solid var(--vscode-tree-indentGuidesStroke, rgba(128, 128, 128, 0.35));
+  margin-left: 0.45rem;
+}
+
+.drafteine-fence summary {
+  list-style: none;
+  cursor: pointer;
+}
+.drafteine-fence summary::-webkit-details-marker {
+  display: none;
+}
+.drafteine-fence .caret {
+  flex: none;
+  width: 0.9rem;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  opacity: 0.55;
+  transition: transform 0.12s;
+}
+.drafteine-fence .caret svg {
+  width: 10px;
+  height: 10px;
+}
+.drafteine-fence .icon {
+  align-self: center;
+}
+.drafteine-fence details[open] > summary .caret {
+  transform: rotate(90deg);
+}
+.drafteine-fence .icon {
+  flex: none;
+  width: 1rem;
+  display: flex;
+  align-items: center;
+}
+.drafteine-fence .icon svg {
+  width: 14px;
+  height: 14px;
+}
+.drafteine-fence .icon.folder svg path {
+  fill: var(--vscode-symbolIcon-folderForeground, #8fb4d4);
+}
+.drafteine-fence.theme-colored .icon.folder svg path {
+  fill: #e2c088; /* manila, like a physical folder */
+}
+.drafteine-fence.theme-espresso .icon.folder svg path {
+  fill: #e8a33d;
+}
+.drafteine-fence.theme-espresso .icon.file svg path {
+  stroke: #8fb4d4;
+}
+.drafteine-fence .icon.file svg path {
+  fill: none;
+  stroke: var(--vscode-symbolIcon-fileForeground, #8fb4d4);
+  stroke-width: 1;
+}
+.drafteine-fence .icon.warn svg path {
+  fill: var(--vscode-errorForeground);
+}
+.drafteine-fence .icon.warn svg .mark {
+  fill: var(--vscode-editor-background, #1e1e1e);
+}
+
+.drafteine-fence .bad .name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.drafteine-fence .chip {
+  font-size: 0.78em;
+  font-style: italic;
+  opacity: 0.75;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.4));
+  border-radius: 999px;
+  padding: 0 0.5em;
+}
+
+.drafteine-fence .err {
+  color: var(--vscode-errorForeground);
+  font-size: 0.85em;
+}
+
+.drafteine-fence .empty {
+  opacity: 0.6;
+}
+
+.drafteine-fence .status {
+  margin-top: 0.6em;
+  padding-top: 0.4em;
+  border-top: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.3));
+  font-size: 0.85em;
+  opacity: 0.75;
+}

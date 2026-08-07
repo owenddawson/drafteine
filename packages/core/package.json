@@ -1,0 +1,42 @@
+{
+  "name": "@drafteine/core",
+  "version": "0.14.0",
+  "description": "Parser, diagnostics, and plan generator for the Drafteine file-tree language. Zero dependencies, no DOM.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "npm run build",
+    "test": "node --test 'test/**/*.test.ts'",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "drafteine",
+    "scaffolding",
+    "file-tree",
+    "parser"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owenddawson/drafteine.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/owenddawson/drafteine#readme",
+  "bugs": {
+    "url": "https://github.com/owenddawson/drafteine/issues"
+  }
+}

@@ -1,0 +1,125 @@
+/**
+ * Shared types for the Drafteine core: parse results, tree nodes,
+ * check IO, violations, and profile maps.
+ */
+
+export const INDENT_UNIT = 2;
+
+export type Severity = "error" | "warning" | "info";
+
+export interface Diagnostic {
+  from: number;
+  to: number;
+  severity: Severity;
+  message: string;
+}
+
+export type LineKind =
+  | "blank"
+  | "comment"
+  | "folder"
+  | "file"
+  | "annotation"
+  | "block-end";
+
+export interface Annotation {
+  key: string;
+  /** Raw value, items rejoined with a comma and space. Null for flags. */
+  value: string | null;
+  /** Parsed value items. Empty for flags and for empty parens. */
+  values: string[];
+  from: number;
+  to: number;
+  /** Set when this annotation was injected by an attribute profile. */
+  fromProfile?: string;
+}
+
+export interface Line {
+  lineNo: number;
+  from: number;
+  to: number;
+  raw: string;
+  kind: LineKind;
+  depth: number;
+  name: string;
+  isFolder: boolean;
+  annotations: Annotation[];
+  errors: Diagnostic[];
+  spans: { name?: [number, number]; comment?: [number, number] };
+  node?: TreeNode;
+  /** True when this entry line opens a `{ … }` annotation block. */
+  opensBlock?: boolean;
+}
+
+export interface TreeNode {
+  kind: LineKind | "root";
+  name: string;
+  depth: number;
+  isFolder: boolean;
+  annotations: Annotation[];
+  children: TreeNode[];
+  /** null only on the synthetic root node */
+  line: Line | null;
+  parent?: TreeNode;
+}
+
+export interface Stats {
+  folders: number;
+  files: number;
+  errors: number;
+  warnings: number;
+}
+
+export interface ParseResult {
+  lines: Line[];
+  root: TreeNode;
+  diagnostics: Diagnostic[];
+  stats: Stats;
+  /** Spaces per indent level detected in this document (default 2). */
+  indentUnit: number;
+}
+
+export interface PlanOp {
+  type: "mkdir" | "touch";
+  path: string;
+  template: string | null;
+}
+
+/** Filesystem access `runCheck` needs. Injectable so the CLI, the VS Code
+ *  extension, and tests share one implementation of check semantics. */
+export interface CheckIO {
+  /** What exists at this draft-relative path? */
+  kind(path: string): "file" | "dir" | "missing";
+  /** Entry names inside a directory at this draft-relative path. */
+  readdir(path: string): string[];
+  /** Line count of the file at this draft-relative path. */
+  countLines(path: string): number;
+  /** Size in bytes of the file at this draft-relative path. */
+  fileSize(path: string): number;
+}
+
+export interface Violation {
+  /** Draft-relative path the violation is about. */
+  path: string;
+  message: string;
+  kind:
+    | "missing"
+    | "type-mismatch"
+    | "strict-extra"
+    | "max-lines"
+    | "max-size"
+    | "forbidden"
+    | "count"
+    | "bad-annotation";
+  /** The declaring node. For strict extras this is the @strict folder itself. */
+  node: TreeNode;
+  /** For strict-extra violations: what kind of entry sits on disk. */
+  entryKind?: "file" | "dir";
+}
+
+/** A profile expands to a set of annotations. Values are item lists,
+ *  null for flags. Declared in config, never in drafts. */
+export type ProfileMap = Record<
+  string,
+  { doc?: string; expands: Record<string, string[] | null> }
+>;

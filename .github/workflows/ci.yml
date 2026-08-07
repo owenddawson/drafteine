@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @drafteine/core -w @drafteine/cli -w @drafteine/language-server
+      - run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: The repo conforms to its own contract
+        run: node packages/cli/dist/drafteine.js check --all
+      - name: The contract is canonically formatted
+        run: node packages/cli/dist/drafteine.js fmt structure.dft --check
+      - name: Playground builds
+        run: npm run build
+
+  windows:
+    name: Windows (experimental)
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @drafteine/core -w @drafteine/cli -w @drafteine/language-server
+      - run: npm test
+
+  extension:
+    name: Extension packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @drafteine/core
+      - run: node build.mjs
+        working-directory: packages/vscode-extension
+      - run: npx @vscode/vsce package --no-dependencies
+        working-directory: packages/vscode-extension
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drafteine-vsix
+          path: packages/vscode-extension/*.vsix

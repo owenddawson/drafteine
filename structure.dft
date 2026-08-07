@@ -1,0 +1,106 @@
+# Drafteine's own structure contract, and a working tour of the language.
+# Checked continuously by the VS Code extension and by: drafteine check --all
+# Membership drift reconciles with: drafteine accept structure.dft
+# A readable repo map renders with: drafteine docs structure.dft
+
+packages/ @owner(core) @strict @count(6) # one folder per published package
+  core/ @strict @pkg # the language: parser, formatter, plan, apply, check
+    src/ @strict @max-lines(500)
+      index.ts # barrel re-export, the public API
+      types.ts # shared types for every module
+      parser.ts # grammar, diagnostics, error recovery
+      plan.ts # draft to ordered filesystem operations
+      apply.ts @since(0.8.0) # materialization with template preflight
+      vocabulary.ts # declared custom annotation validation
+      accept.ts @since(0.12.2) # snapshot-style drift reconciliation
+      check.ts # reality must conform to the draft
+      profiles.ts @since(0.6.0) # named policy presets from config
+      format.ts # canonical formatter plus aligned house style
+    test/ @strict @max-lines(650)
+      parser.test.ts
+    package.json
+    tsconfig.json
+    tsconfig.build.json
+    README.md
+    LICENSE
+  cli/ @strict @pkg # the drafteine command
+    src/ @strict @max-lines(650)
+      drafteine.ts # verb dispatch, grows with each verb
+      diff.ts # unified diff for the check modes
+      gitignore.ts # snapshot's gitignore matcher
+      config.ts # profiles, vocabulary, templates, contracts
+      scaffold.ts # init onboarding and owner queries
+    test/ @strict @max-lines(500)
+      cli.test.ts
+    package.json
+    tsconfig.json
+    tsconfig.build.json
+    README.md
+    LICENSE
+  language-server/ @strict @pkg # LSP for every editor
+    src/ @strict @max-lines(450)
+      server.ts # diagnostics, completion, hover, symbols, folding
+      configcheck.ts # validation for the config language
+      annotations.ts @max-lines(250) # the built-in vocabulary and docs
+    test/ @strict @max-lines(300)
+      server.test.ts
+    package.json
+    tsconfig.json
+    tsconfig.build.json
+    README.md
+    LICENSE
+  vscode-extension/ { # block form: annotations on their own lines
+    @strict
+    @allow(dist/, node_modules/, *.vsix)
+  }
+    src/ @strict @max-lines(400)
+      extension.ts # client, preview, apply, markdown fences
+      check.ts # contract watcher, Problems, Explorer badges
+    syntaxes/ @strict
+      drafteine.tmLanguage.json
+    schemas/ @strict
+      drafteine.config.schema.json # completion and validation for the config
+    media/ @strict
+      drafteine-fence.css
+      filecolors.css @optional @max-size(400k) # generated from linguist
+      icon.png @max-size(100k) # marketplace icon
+      dft-light.svg # file icon, light themes
+      dft-dark.svg # file icon, dark themes
+      dft-config-light.svg # reserved for upstream icon theme PRs
+      dft-config-dark.svg # reserved for upstream icon theme PRs
+    package.json
+    tsconfig.json
+    build.mjs
+    language-configuration.json
+    .vscodeignore
+    README.md
+  shared/ @forbidden # no dumping-ground package, split properly instead
+  test.dft @optional # scratch draft kept for manual testing
+playground/ @strict # the browser demo, kept out of the packages
+  index.html
+  src/ @strict @max-lines(350)
+    editor.ts
+    preview.ts
+    main.ts
+    style.css
+    vite-env.d.ts
+scratch/ @forbidden # experiments belong outside the repo
+.github/ @strict # public contribution machinery
+  workflows/ @strict
+    ci.yml # quality gates on every push and pull request
+    release.yml # tag-triggered release with tarball and vsix assets
+  ISSUE_TEMPLATE/ @strict
+    bug_report.yml
+    feature_request.yml
+  PULL_REQUEST_TEMPLATE.md # the five-gate checklist
+package.json
+LICENSE
+CONTRIBUTING.md
+EDITORS.md
+CHANGELOG.md
+.editorconfig
+tsconfig.json
+eslint.config.js
+drafteine.config.json
+SPEC.md
+README.md

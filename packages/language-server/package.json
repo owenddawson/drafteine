@@ -1,0 +1,46 @@
+{
+  "name": "@drafteine/language-server",
+  "version": "0.14.0",
+  "description": "Language Server Protocol implementation for the Drafteine file-tree language: diagnostics, formatting, completions, hover docs.",
+  "type": "module",
+  "bin": {
+    "drafteine-language-server": "dist/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "npm run build",
+    "test": "node --test 'test/**/*.test.ts'",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@drafteine/core": "^0.14.0",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "drafteine",
+    "scaffolding",
+    "file-tree",
+    "structure",
+    "lint"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owenddawson/drafteine.git",
+    "directory": "packages/language-server"
+  },
+  "homepage": "https://github.com/owenddawson/drafteine#readme",
+  "bugs": {
+    "url": "https://github.com/owenddawson/drafteine/issues"
+  }
+}

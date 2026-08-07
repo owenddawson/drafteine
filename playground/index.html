@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drafteine — draft trees, materialize them</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wordmark">
+        <span class="wordmark-draft">Draft</span><span class="wordmark-eine">eine</span>
+      </div>
+      <details class="syntax-help">
+        <summary>Syntax</summary>
+        <div class="syntax-card">
+          <p><code>name/</code> is a folder, <code>name.ext</code> is a file. Indent two spaces to nest — Tab and Shift-Tab move a line between valid levels, and Enter after a folder opens the next level for you.</p>
+          <p><code>@template(cpp-main)</code> attaches behavior to a line. <code># …</code> is a comment. Lines with errors stay visible in the preview but never reach the plan.</p>
+        </div>
+      </details>
+    </header>
+
+    <main class="workbench">
+      <section class="pane pane-editor" aria-label="Draft editor">
+        <div class="pane-title">draft</div>
+        <div id="editor"></div>
+      </section>
+
+      <section class="pane pane-right">
+        <div class="pane-block">
+          <div class="pane-title">preview</div>
+          <div id="tree" class="tree" aria-live="polite"></div>
+        </div>
+        <div class="pane-block pane-plan">
+          <div class="pane-title plan-title">
+            <span>plan</span>
+            <span id="plan-count" class="plan-count"></span>
+            <button id="copy-script" class="copy-btn" type="button">Copy shell script</button>
+          </div>
+          <div id="plan" class="plan"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer id="status" class="statusbar"></footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

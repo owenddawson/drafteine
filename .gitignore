@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.vsix
+packages/vscode-extension/media/filecolors.css
+media-design/

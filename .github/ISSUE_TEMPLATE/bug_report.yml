@@ -1,0 +1,38 @@
+name: Bug report
+description: Something misbehaves in the language, CLI, LSP, or extension
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.14.0 (drafteine --version, or the extension version)"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options: [CLI, VS Code extension, Language server, Core library, Playground]
+    validations:
+      required: true
+  - type: textarea
+    id: draft
+    attributes:
+      label: Minimal draft or command that reproduces it
+      description: Paste the smallest .dft content or command sequence that shows the problem.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
