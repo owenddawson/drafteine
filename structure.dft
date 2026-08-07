@@ -76,7 +76,7 @@ packages/ @owner(core) @strict @count(6) # one folder per published package
     README.md
   shared/ @forbidden # no dumping-ground package, split properly instead
   test.dft @optional # scratch draft kept for manual testing
-playground/ @strict # the browser demo, kept out of the packages
+playground/ @strict @allow(dist/) # the browser demo, kept out of the packages
   index.html
   src/ @strict @max-lines(350)
     editor.ts
@@ -96,6 +96,8 @@ scratch/ @forbidden # experiments belong outside the repo
 package.json
 LICENSE
 CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
 EDITORS.md
 CHANGELOG.md
 .editorconfig
