@@ -87,6 +87,11 @@ packages/ { owner: core, strict, count: 6 } # one folder per published package
     language-configuration.json
     .vscodeignore
     README.md
+  drafteine/ { strict, since: 0.15.0 } # the flagship npm name, a doorway to @drafteine/cli
+    package.json
+    bin.js
+    README.md
+    LICENSE
   shared/ { forbidden } # no dumping-ground package, split properly instead
   test.dft? # scratch draft kept for manual testing
 playground/ { strict, allow: dist/ } # the browser demo, kept out of the packages

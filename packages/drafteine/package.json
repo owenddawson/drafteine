@@ -1,0 +1,23 @@
+{
+  "name": "drafteine",
+  "version": "0.15.0",
+  "description": "Draft it like text, read it like a tree, materialize it for real. The drafteine command: declare, materialize, and enforce file structure.",
+  "type": "module",
+  "bin": {
+    "drafteine": "bin.js"
+  },
+  "files": [
+    "bin.js"
+  ],
+  "dependencies": {
+    "@drafteine/cli": "^0.15.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owenddawson/drafteine.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

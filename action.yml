@@ -5,7 +5,7 @@ branding:
   color: "orange"
 inputs:
   version:
-    description: "The @drafteine/cli version to run."
+    description: "The drafteine version to run."
     required: false
     default: "latest"
   root:
@@ -17,4 +17,4 @@ runs:
   steps:
     - name: drafteine check --all
       shell: bash
-      run: npx --yes --package "@drafteine/cli@${{ inputs.version }}" drafteine check --all --root "${{ inputs.root }}"
+      run: npx --yes "drafteine@${{ inputs.version }}" check --all --root "${{ inputs.root }}"

@@ -5,7 +5,10 @@
   "type": "module",
   "description": "Drafteine \u2014 draft file trees as text, preview them live, materialize them for real.",
   "workspaces": [
-    "packages/*"
+    "packages/core",
+    "packages/cli",
+    "packages/language-server",
+    "packages/vscode-extension"
   ],
   "scripts": {
     "dev": "npm run build -w @drafteine/core && vite playground",

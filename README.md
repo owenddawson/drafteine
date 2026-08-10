@@ -116,6 +116,10 @@ npm run typecheck  # tsc over every project
 ## The CLI
 
 ```sh
+npm install -g drafteine   # or ad hoc: npx drafteine <verb>
+```
+
+```sh
 drafteine plan     structure.dft            # show what apply would create
 drafteine apply    structure.dft --root .   # create it (never overwrites)
 drafteine tree     structure.dft            # ASCII render
@@ -151,7 +155,7 @@ Anywhere else (Codeberg/Forgejo, GitLab, plain shell), the action is
 just this one line:
 
 ```sh
-npx --yes --package @drafteine/cli drafteine check --all
+npx --yes drafteine check --all
 ```
 
 Exit code 1 on violations fails the build. `codeowners --check` and
@@ -178,7 +182,7 @@ checked.
      "hooks": {
        "Stop": [
          { "hooks": [{ "type": "command",
-             "command": "npx --yes --package @drafteine/cli drafteine check --all 1>&2 || exit 2" }] }
+             "command": "npx --yes drafteine check --all 1>&2 || exit 2" }] }
        ]
      }
    }
@@ -223,7 +227,8 @@ built-ins.
 ## Layout
 
 - `packages/core` — the language: parser, formatter, plan, check. Zero deps, typed, no DOM.
-- `packages/cli` — the `drafteine` command.
+- `packages/cli` — the `drafteine` command (`@drafteine/cli`).
+- `packages/drafteine` — the flagship npm name, a thin doorway to the CLI.
 - `packages/language-server` — LSP server (diagnostics, completions, hover, symbols) for any editor.
 - `packages/vscode-extension` — LSP client, TextMate grammar, preview, apply, check watcher.
 - `playground/` — the browser demo (CodeMirror 6).
