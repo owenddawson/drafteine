@@ -12,7 +12,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
  * built-in JSON service no longer sees it, so this server validates it
  * with the same rules the JSON schema encodes. */
 
-export const CONFIG_KEYS = new Set(["contracts", "templates", "profiles", "annotations"]);
+export const CONFIG_KEYS = new Set(["contracts", "templates", "annotations"]);
 const NAME_RE = /^[A-Za-z][\w-]*$/;
 
 export function isConfigDoc(doc: TextDocument): boolean {
@@ -74,25 +74,12 @@ export function validateConfig(doc: TextDocument): Diagnostic[] {
     }
   }
   if (cfg.profiles !== undefined) {
-    if (!Array.isArray(cfg.profiles)) out.push(diag("profiles", "profiles must be an array."));
-    else {
-      for (const entry of cfg.profiles) {
-        const e = entry as { name?: unknown; expands?: unknown };
-        if (typeof e?.name !== "string" || !NAME_RE.test(e.name)) {
-          out.push(diag("profiles", "Each profile needs a name like a-word-1."));
-          continue;
-        }
-        if (typeof e.expands !== "object" || e.expands === null) {
-          out.push(diag(e.name, `Profile "${e.name}" needs an expands object.`));
-          continue;
-        }
-        for (const k of Object.keys(e.expands as object)) {
-          if (k === "strict" || k === "optional") {
-            out.push(diag(k, "Profiles may not expand @strict or @optional. Structure stays explicit."));
-          }
-        }
-      }
-    }
+    out.push(
+      diag(
+        "profiles",
+        'Presets moved into the draft. Define them there: preset name { … }, and reference with "preset: name".'
+      )
+    );
   }
   if (cfg.annotations !== undefined) {
     if (!Array.isArray(cfg.annotations)) out.push(diag("annotations", "annotations must be an array."));
@@ -117,9 +104,8 @@ export function validateConfig(doc: TextDocument): Diagnostic[] {
 
 export const CONFIG_KEY_DOCS: Record<string, string> = {
   contracts: "Drafts that check enforces continuously and via check --all.",
-  templates: "Template directory backing @template(path) at apply time.",
-  profiles: "Named policy presets usable as @name in drafts.",
-  annotations: "Custom annotation vocabulary with value shapes.",
+  templates: "Template directory backing template: values at apply time.",
+  annotations: "Custom attribute vocabulary with value shapes.",
 };
 
 

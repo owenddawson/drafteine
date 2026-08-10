@@ -54,7 +54,7 @@ export function renderTree(container: HTMLElement, result: ParseResult): void {
     for (const a of line.annotations) {
       const chip = document.createElement("span");
       chip.className = "tree-chip";
-      chip.textContent = a.value === null ? `@${a.key}` : `@${a.key}(${a.value})`;
+      chip.textContent = a.value === null ? a.key : `${a.key}: ${a.value}`;
       row.append(chip);
     }
 

@@ -6,10 +6,10 @@ import type { CheckIO, TreeNode, Violation } from "./types.js";
 /**
  * Verify that reality (as seen through `io`) conforms to a parsed draft.
  * Semantics: drafted entries must exist, missing ones are violations, and
- * extras are fine. @optional exempts absence but a present entry must
- * still conform. @strict makes a folder's undeclared direct children
- * violations. @max-lines(n) bounds a file. Error lines never reach
- * enforcement.
+ * extras are fine. A trailing `?` (or the `optional` flag) exempts absence
+ * but a present entry must still conform. `strict` makes a folder's
+ * undeclared direct children violations. `max-lines: n` bounds a file.
+ * Error lines never reach enforcement.
  */
 export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
   const violations: Violation[] = [];
@@ -39,7 +39,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
     const mult = { "": 1, k: 1000, m: 1000000 }[m[2].toLowerCase() as "" | "k" | "m"];
     return Math.round(Number(m[1]) * mult);
   }
-  /** @allow glob: * and ? on immediate child names, trailing / = dirs only. */
+  /** allow glob: * and ? on immediate child names, trailing / = dirs only. */
   function allowMatcher(pat: string): (name: string, isDir: boolean) => boolean {
     const dirOnly = pat.endsWith("/");
     const core = dirOnly ? pat.slice(0, -1) : pat;
@@ -62,7 +62,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
         violations.push({
           path: p,
           kind: "bad-annotation",
-          message: `${p}: @max-lines(${maxLines}) is not a positive number`,
+          message: `${p}: max-lines: ${maxLines} is not a positive number`,
           node: anchor,
         });
       } else {
@@ -71,7 +71,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           violations.push({
             path: p,
             kind: "max-lines",
-            message: `${p}: ${count} lines, exceeds @max-lines(${n})`,
+            message: `${p}: ${count} lines, exceeds max-lines: ${n}`,
             node: anchor,
           });
         }
@@ -84,7 +84,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
         violations.push({
           path: p,
           kind: "bad-annotation",
-          message: `${p}: @max-size(${maxSize}) is not a size like 200, 64k, or 2m`,
+          message: `${p}: max-size: ${maxSize} is not a size like 200, 64k, or 2m`,
           node: anchor,
         });
       } else {
@@ -93,7 +93,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           violations.push({
             path: p,
             kind: "max-size",
-            message: `${p}: ${size} bytes, exceeds @max-size(${maxSize})`,
+            message: `${p}: ${size} bytes, exceeds max-size: ${maxSize}`,
             node: anchor,
           });
         }
@@ -111,7 +111,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           violations.push({
             path: p,
             kind: "forbidden",
-            message: `${p}: exists but is declared @forbidden`,
+            message: `${p}: exists but is declared forbidden`,
             node: child,
           });
         }
@@ -162,7 +162,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           violations.push({
             path: p,
             kind: "bad-annotation",
-            message: `${p}: @count(${countMax}) is not a positive number`,
+            message: `${p}: count: ${countMax} is not a positive number`,
             node: child,
           });
         } else {
@@ -171,7 +171,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
             violations.push({
               path: p,
               kind: "count",
-              message: `${p}: ${total} direct entries, exceeds @count(${n})`,
+              message: `${p}: ${total} direct entries, exceeds count: ${n}`,
               node: child,
             });
           }
@@ -194,7 +194,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           violations.push({
             path: entryPath,
             kind: "strict-extra",
-            message: `${entryPath}: undeclared direct child of @strict folder ${p}/`,
+            message: `${entryPath}: undeclared direct child of strict folder ${p}/`,
             node: child,
             entryKind: isDir ? "dir" : "file",
           });

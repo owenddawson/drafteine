@@ -5,13 +5,33 @@ Everything below was built pre-release.
 
 ## 0.15.0 (unreleased)
 
-**Language.** Version pragma: `drafteine 1` as the first content line
-declares the draft's format version. Optional, and absence means format 1
-permanently. Newer-format drafts parse best-effort with a warning, while
-`fmt`, `accept`, and `apply` refuse to act on them (the no-rewrite rule).
+**Language: the format 1 surface.** The pre-release trailing `@key(value)`
+annotations and the separate block form are replaced by one attribute
+container, inline or expanded: `{ owner: @core, strict, count: 6 }` with
+bare flags, `key: value` pairs, and `[bracketed]` lists. A trailing `?`
+sigil marks entries optional (`docs.md?`, `vendor/?`). Presets moved out
+of JSON config into the draft: `preset pkg { allow: [dist/] }` defined at
+the top, referenced with `preset: pkg`, one per entry, policy keys only.
+Sparse path lines declare one deep entry with implied required ancestors:
+`src/legacy/db.ts { max-lines: 900 }`. Container faults recover per line
+and never eat siblings. Old `@` syntax draws a dedicated migration error.
+
+**Version pragma.** `drafteine 1` as the first content line declares the
+draft's format version. Optional, and absence means format 1 permanently.
+Newer-format drafts parse best-effort with a warning, while `fmt`,
+`accept`, and `apply` refuse to act on them (the no-rewrite rule).
 Malformed pragmas diagnose instead of silently parsing as files, and
 pragma-shaped names quote to stay files. `init` and `snapshot` emit the
 pragma in generated drafts.
+
+**Config.** `drafteine.config.json` is machine-local plumbing only:
+contracts, templates directory, custom attribute vocabulary. The
+`profiles` key is retired with a migration diagnostic.
+
+**Tooling.** Parser, formatter, LSP (container-aware completions, preset
+name completion after `preset:`), TextMate grammar, playground, and the
+extension's contract watcher all speak the new surface. Violation
+messages restyle without `@` signs.
 
 ## 0.14.0 (pre-release state)
 

@@ -2,7 +2,7 @@
  * Accept: reconcile a draft's membership with reality, the snapshot-update
  * model for structure enforcement. Declares strict-folder extras and
  * removes drafted-but-missing entries. Policy violations (metrics,
- * @forbidden, @count) and type mismatches are never auto-amended: those
+ * forbidden, count) and type mismatches are never auto-amended: those
  * stay human decisions, listed as remaining.
  */
 import { quoteName } from "./parser.js";

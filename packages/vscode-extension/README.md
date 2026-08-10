@@ -4,8 +4,8 @@ Language support for `.dft` file-tree drafts:
 
 - **Diagnostics as you type** — over-indentation, files with children,
   invalid names, duplicate siblings, all from the Drafteine language server.
-- **IntelliSense** — type `@` for annotation completions with docs;
-  hover any annotation for its meaning.
+- **IntelliSense** — type `{` for attribute completions with docs;
+  hover any attribute for its meaning.
 - **Format** — the canonical Drafteine formatter, wired to *Format Document*.
 - **Outline & folding** — the draft's tree structure in the Outline view.
 - **Live preview** — `Drafteine: Open Preview to the Side`.
@@ -15,9 +15,9 @@ Language support for `.dft` file-tree drafts:
 ## Syntax
 
 ```
-app/ @strict
+app/ { strict }
   src/
-    main.ts @max-lines(200)
+    main.ts { max-lines: 200 }
   README.md          # folders end with /, files don't
 ```
 

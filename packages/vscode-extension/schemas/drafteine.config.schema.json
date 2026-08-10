@@ -35,57 +35,10 @@
     },
     "templates": {
       "type": "string",
-      "description": "Template directory. @template(path) values resolve inside it and apply writes their bytes verbatim."
-    },
-    "profiles": {
-      "description": "Named policy presets. Writing @name on an entry behaves as if the expanded annotations were written there. Explicit annotations override profile values.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "pattern": "^[A-Za-z][\\w-]*$",
-            "description": "Annotation name the profile answers to."
-          },
-          "doc": {
-            "type": "string",
-            "description": "Shown in editor hover and completion."
-          },
-          "expands": {
-            "type": "object",
-            "description": "Annotations the profile carries. Values are a string, an array of items, or null for flags. Profiles may never expand strict or optional, structure stays explicit.",
-            "additionalProperties": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "properties": {
-              "strict": false,
-              "optional": false
-            }
-          }
-        },
-        "required": [
-          "name",
-          "expands"
-        ],
-        "additionalProperties": false
-      }
+      "description": "Template directory. template: values resolve inside it and apply writes their bytes verbatim."
     },
     "annotations": {
-      "description": "Custom annotation vocabulary. Declared annotations complete and hover like built-ins, and check validates their value shape.",
+      "description": "Custom attribute vocabulary. Declared attributes complete and hover like built-ins, and check validates their value shape.",
       "type": "array",
       "items": {
         "type": "object",
@@ -93,7 +46,7 @@
           "name": {
             "type": "string",
             "pattern": "^[A-Za-z][\\w-]*$",
-            "description": "Annotation name, used as @name in drafts."
+            "description": "Attribute name, used as key or key: value in containers."
           },
           "value": {
             "type": "string",
@@ -117,7 +70,7 @@
               "both"
             ],
             "default": "both",
-            "description": "Which entries the annotation completes on."
+            "description": "Which entries the attribute completes on."
           }
         },
         "required": [

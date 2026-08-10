@@ -8,17 +8,5 @@
       "value": "string",
       "doc": "Version that introduced this entry."
     }
-  ],
-  "profiles": [
-    {
-      "name": "pkg",
-      "doc": "Workspace package root: build artifacts tolerated inside.",
-      "expands": {
-        "allow": [
-          "dist/",
-          "node_modules/"
-        ]
-      }
-    }
   ]
 }

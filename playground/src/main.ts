@@ -10,20 +10,24 @@ import { createEditor } from "./editor";
 import { renderTree, renderPlan, renderStatus } from "./preview";
 
 const STARTER = `# Drafteine. Every line below becomes part of the tree on the right.
-# Folders end with /. Annotations attach behavior. Try breaking a line.
+# Folders end with /. Attributes sit in { }. Try breaking a line.
 
-drafteine/ @strict @allow(dist/, node_modules/)
-  src/ @max-lines(400)
+drafteine 1
+
+preset code { max-lines: 400 }
+
+drafteine/ { strict, allow: [dist/, node_modules/] }
+  src/ { preset: code }
     parser.ts
     editor.ts
     "release @ 2x.png"
   test/
     parser.test.ts
   main.cpp {
-    @template(cpp/main.cpp)
-    @max-lines(200)
+    template: cpp/main.cpp
+    max-lines: 200
   }
-  docs/ @optional
+  docs/?
   README.md # quick view of the whole structure
 `;
 

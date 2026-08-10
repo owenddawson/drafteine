@@ -11,9 +11,9 @@
  * `-` (or piping with no file argument) reads the draft from stdin.
  *
  * Check semantics: drafted entries must exist and missing ones are
- * violations, extra files are fine. @optional exempts an entry. @strict
- * on a folder makes undeclared entries inside it violations. @max-lines(n)
- * bounds a file.
+ * violations, extra files are fine. A trailing ? marks an entry optional.
+ * { strict } on a folder makes undeclared entries inside it violations.
+ * { max-lines: n } bounds a file.
  *
  * Exit codes: 0 ok · 1 draft errors or check violations · 2 usage/io error
  */
@@ -31,7 +31,6 @@ import {
   runCheck,
   runApply,
   acceptViolations,
-  applyProfiles,
   validateVocabulary,
   SPEC_VERSION,
   type ApplyIO,
@@ -119,7 +118,7 @@ if (command === "init") {
   for (const note of runInit(path.resolve(args.root), args.agents)) {
     console.error(dim(note));
   }
-  console.error(dim("next: review structure.dft, add @strict and ceilings where you care, then: drafteine check --all"));
+  console.error(dim("next: review structure.dft, add { strict } and ceilings where you care, then: drafteine check --all"));
   process.exit(0);
 }
 
@@ -239,7 +238,6 @@ if (command === "check" && !args.file && (args.all || process.stdin.isTTY)) {
       return { draft: rel, readable: false, draftErrors: 0, violations: [] as ReturnType<typeof runCheck> };
     }
     const res = parse(text);
-    applyProfiles(res, cfg.profiles);
     validateVocabulary(res, cfg.vocabulary);
     const violations = res.stats.errors > 0 ? [] : runCheck(res.root, makeCheckIO(contract.root));
     return { draft: rel, readable: true, draftErrors: res.stats.errors, violations };
@@ -313,9 +311,6 @@ const displayName = args.file === "-" ? "<stdin>" : args.file;
 const result = parse(source);
 
 const config = loadConfig(path.resolve(args.root));
-if (command === "check" || command === "codeowners") {
-  applyProfiles(result, config.profiles);
-}
 if (command === "check") {
   validateVocabulary(result, config.vocabulary);
 }
@@ -342,7 +337,7 @@ if (
   );
 }
 
-/* ---------------- codeowners: emit ownership from @owner --------------- */
+/* ---------------- codeowners: emit ownership from owner --------------- */
 
 if (command === "codeowners") {
   const lines: string[] = [
@@ -464,7 +459,7 @@ if (command === "docs") {
     const label = line.isFolder ? `**${line.name}/**` : `\`${line.name}\``;
     const anns = line.annotations
       .filter((a) => !a.fromProfile)
-      .map((a) => `\`@${a.key}${a.value !== null ? `(${a.value})` : ""}\``)
+      .map((a) => `\`${a.key}${a.value !== null ? `: ${a.value}` : ""}\``)
       .join(" ");
     const comment = line.spans.comment
       ? ": " + line.raw.slice(line.spans.comment[0] - line.from).replace(/^#\s*/, "").trimEnd()
@@ -624,8 +619,8 @@ function renderAscii(res: ParseResult): void {
           ? " " +
             dim(
               child.annotations
-                .map((a) => (a.value ? `@${a.key}(${a.value})` : `@${a.key}`))
-                .join(" ")
+                .map((a) => (a.value ? `${a.key}: ${a.value}` : a.key))
+                .join(", ")
             )
           : "") +
         (isErr ? red("  ✗ " + child.line!.errors[0].message) : "");

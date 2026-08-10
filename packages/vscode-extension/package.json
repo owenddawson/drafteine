@@ -2,7 +2,7 @@
   "name": "drafteine",
   "displayName": "Drafteine",
   "description": "Draft file trees as text: live diagnostics, IntelliSense, preview, and one-click materialization for .dft files.",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "publisher": "drafteine",
   "license": "MIT",
   "private": true,
@@ -55,7 +55,7 @@
       },
       {
         "command": "drafteine.toggleStructureView",
-        "title": "Drafteine: Toggle Structure View (Dim Annotations)"
+        "title": "Drafteine: Toggle Structure View (Dim Attributes)"
       },
       {
         "command": "drafteine.openSettings",

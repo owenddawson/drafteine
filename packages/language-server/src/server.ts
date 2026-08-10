@@ -4,8 +4,8 @@
  *
  * One implementation serves every LSP client (VS Code, JetBrains, Neovim,
  * Helix, Zed …): push diagnostics from the parser, whole-document
- * formatting via the canonical formatter, `@` completions and hover docs
- * from the annotation vocabulary.
+ * formatting via the canonical formatter, attribute completions inside
+ * `{ }` containers, and hover docs from the attribute vocabulary.
  */
 import {
   createConnection,
@@ -64,31 +64,6 @@ function readVocabFile(file: string, fromKey: boolean): Record<string, Annotatio
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
     const cfg = fromKey ? (parsed.drafteine as Record<string, unknown> | undefined) : parsed;
-    const profiles = cfg?.profiles;
-    if (Array.isArray(profiles)) {
-      for (const entry of profiles) {
-        const e = entry as { name?: string; doc?: string; expands?: Record<string, unknown> };
-        if (!e.name || !/^[A-Za-z][\w-]*$/.test(e.name) || !e.expands) continue;
-        const shown = Object.entries(e.expands)
-          .map(([k, v]) =>
-            v === null ? `@${k}` : `@${k}(${Array.isArray(v) ? v.join(", ") : String(v)})`
-          )
-          .join(" ");
-        vocab[e.name] = {
-          snippet: e.name,
-          doc: [
-            `**@${e.name}** (attribute profile)`,
-            "",
-            e.doc ?? "Named policy preset declared by this project.",
-            "",
-            `Expands to: \`${shown}\``,
-            "",
-            `Declared in ${path.basename(file)}. Explicit annotations override profile values.`,
-          ].join("\n"),
-          appliesTo: "both",
-        };
-      }
-    }
     const list = cfg?.annotations;
     if (Array.isArray(list)) {
       for (const entry of list) {
@@ -96,9 +71,9 @@ function readVocabFile(file: string, fromKey: boolean): Record<string, Annotatio
         if (!e.name || !/^[A-Za-z][\w-]*$/.test(e.name)) continue;
         const takesValue = e.value !== undefined && e.value !== "flag";
         vocab[e.name] = {
-          snippet: takesValue ? `${e.name}($1)` : e.name,
+          snippet: takesValue ? `${e.name}: $1` : e.name,
           doc: [
-            `**@${e.name}${takesValue ? `(${e.value})` : ""}**`,
+            `**${e.name}${takesValue ? `: ${e.value}` : ""}**`,
             "",
             e.doc ?? "Custom annotation declared by this project.",
             "",
@@ -143,7 +118,7 @@ connection.onInitialize((params): InitializeResult => {
   return {
   capabilities: {
     textDocumentSync: TextDocumentSyncKind.Incremental,
-    completionProvider: { triggerCharacters: ["@"] },
+    completionProvider: { triggerCharacters: ["{", ","] },
     hoverProvider: true,
     documentFormattingProvider: true,
     documentSymbolProvider: true,
@@ -196,16 +171,41 @@ connection.onCompletion((params): CompletionItem[] => {
   const result = parsed(doc);
   const line = result.lines[params.position.line];
   const isFolder = line?.isFolder ?? false;
+  const before = doc.getText({
+    start: { line: params.position.line, character: 0 },
+    end: params.position,
+  });
+
+  // Attribute completions apply inside a container: after an unclosed `{`
+  // on this line, or on an item line of an expanded container.
+  const inContainer =
+    before.lastIndexOf("{") > before.lastIndexOf("}") || line?.kind === "annotation";
+  if (!inContainer) return [];
+
+  // After `preset:`, offer the presets defined in this draft.
+  if (/preset\s*:\s*[\w-]*$/.test(before)) {
+    return Object.keys(result.presets).map((name) => ({
+      label: name,
+      kind: CompletionItemKind.Value,
+      documentation: {
+        kind: MarkupKind.Markdown,
+        value: `Preset defined in this draft. Expands to: \`${Object.entries(
+          result.presets[name].expands
+        )
+          .map(([k, v]) => (v === null ? k : `${k}: ${v.join(", ")}`))
+          .join(", ")}\``,
+      },
+    }));
+  }
 
   return Object.entries({ ...ANNOTATIONS, ...customAnnotations() })
     .filter(([, a]) => a.appliesTo === "both" || a.appliesTo === (isFolder ? "folder" : "file"))
     .map(([key, a]) => ({
-      label: `@${key}`,
+      label: key,
       kind: CompletionItemKind.Property,
       insertText: a.snippet,
       insertTextFormat: InsertTextFormat.Snippet,
       documentation: { kind: MarkupKind.Markdown, value: a.doc },
-      // The trigger `@` is already typed. Completing replaces from after it.
       filterText: key,
     }));
 });
@@ -240,7 +240,7 @@ connection.onHover((params): Hover | null => {
     return {
       contents: {
         kind: MarkupKind.Markdown,
-        value: md ?? `**@${ann.key}**\n\nUnknown annotation. It is parsed and carried through, and tools ignore it.`,
+        value: md ?? `**${ann.key}**\n\nUnknown attribute. It is parsed and carried through, and tools ignore it.`,
       },
       range: { start: doc.positionAt(ann.from), end: doc.positionAt(ann.to) },
     };
@@ -264,7 +264,7 @@ connection.onHover((params): Hover | null => {
     if (node.annotations.length > 0) {
       parts.push(
         node.annotations
-          .map((a) => `\`@${a.key}${a.value !== null ? `(${a.value})` : ""}\``)
+          .map((a) => `\`${a.key}${a.value !== null ? `: ${a.value}` : ""}\``)
           .join(" · ")
       );
     }
@@ -390,12 +390,12 @@ connection.onCodeAction((params): CodeAction[] => {
         },
       });
     }
-    const dup = /^Duplicate @([\w-]+)/.exec(d.message);
+    const dup = /^Duplicate “([\w-]+)”/.exec(d.message);
     if (dup) {
       const start = { ...d.range.start };
       if (start.character > 0) start.character -= 1; // take the leading space too
       actions.push({
-        title: `Remove duplicate @${dup[1]}`,
+        title: `Remove duplicate “${dup[1]}”`,
         kind: CodeActionKind.QuickFix,
         diagnostics: [d],
         edit: {

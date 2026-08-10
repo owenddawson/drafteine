@@ -44,8 +44,8 @@ prefer splitting the file over raising the ceiling, and say which you did.
 1. A draft must read as a tree with zero training. Syntax that breaks the
    silhouette is wrong.
 2. Meaning is local. Constraints that tighten (metrics) may inherit from
-   folders; anything that loosens (`@allow`) must be written where it
-   applies. `@strict` seals direct children only.
+   folders; anything that loosens (`allow`) must be written where it
+   applies. `strict` seals direct children only.
 3. The verb decides semantics: `apply` creates, `check` enforces, the
    file has no modes.
 4. Error tolerance is normative: invalid lines render flagged, never

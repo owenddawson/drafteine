@@ -61,9 +61,13 @@ function buildDecorations(result: ParseResult): DecorationSet {
       }
       continue;
     }
-    if (line.kind === "pragma") {
-      const end = line.spans.version ? line.spans.version[1] : line.to;
-      if (line.from < end) builder.add(line.from, end, mark.annotation);
+    if (line.kind === "pragma" || line.kind === "preset") {
+      const headEnd =
+        line.kind === "pragma"
+          ? (line.spans.version?.[1] ?? line.to)
+          : (line.spans.name?.[1] ?? line.to);
+      if (line.from < headEnd) builder.add(line.from, headEnd, mark.annotation);
+      for (const a of line.annotations) builder.add(a.from, a.to, mark.annotation);
       if (line.spans.comment) {
         const [from, to] = line.spans.comment;
         if (from < to) builder.add(from, to, mark.comment);

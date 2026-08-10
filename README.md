@@ -6,22 +6,40 @@
 
 **Draft it like text · read it like a tree · materialize it for real.**
 
-Drafteine is an IDE-style productivity tool built around a small
-indentation-driven language for drafting file trees. You type an outline;
-the editor parses it continuously, renders a live file-tree preview, and
-produces a materialization plan — the exact `mkdir`/`touch` operations that
-would turn your draft into a real directory structure.
+Drafteine is a small indentation-driven language and toolchain for
+drafting, materializing, and enforcing file trees. You type an outline;
+the tooling parses it continuously, renders a live file-tree preview,
+materializes the missing pieces (never overwriting), and holds the
+directory to the contract from then on — in your editor, in CI, and
+across AI-agent sessions.
 
 Invalid lines never blank the preview: they render in place, flagged with
 the error, and are simply excluded from the plan.
 
 ```
-drafteine/
-  src/
-    main.cpp @template(cpp-main)
+drafteine 1
+
+preset code { max-lines: 400 }
+
+drafteine/ { strict, allow: [dist/, node_modules/] }
+  src/ { preset: code }
+    main.cpp { template: cpp-main }
   test/
     parser.test.js
+  docs/?
   README.md
+```
+
+Folders end with `/`, attributes sit in a `{ }` container, a trailing
+`?` marks an entry optional, and policy presets are defined in the draft
+itself. A sparse contract can skip the tree entirely and govern a few
+spots by path:
+
+```
+drafteine 1
+
+src/legacy/db.ts { max-lines: 900 } # the one file we watch
+packages/core/src/ { strict, max-lines: 500 }
 ```
 
 See [SPEC.md](SPEC.md) for the language specification.
@@ -62,13 +80,14 @@ Copy the block into a file (or your clipboard) and run:
 `drafteine apply setup.dft` — or `pbpaste | drafteine apply`
 ````
 
-**Agent workflow — the agent proposes, the human reviews ten lines
-instead of forty file creations, then applies:**
+**Agent workflow — the planning agent proposes a contract, the human
+reviews ten lines instead of forty file creations, the implementing
+agent is held to it:**
 
 ```sh
 claude -p "draft a folder layout for a fastify + drizzle api as drafteine" \
   | drafteine plan          # review the proposal
-  | # looks right? run apply
+  | # looks right? apply it, then: drafteine check --all after every change set
 ```
 
 ## The library
@@ -103,25 +122,25 @@ drafteine tree     structure.dft            # ASCII render
 drafteine snapshot . > structure.dft        # real directory → draft
 drafteine check    structure.dft            # verify reality conforms
 drafteine fmt      structure.dft --write    # canonical formatting
-drafteine codeowners structure.dft --out CODEOWNERS   # ownership from @owner
+drafteine codeowners structure.dft --out CODEOWNERS   # ownership from owner:
 drafteine accept   structure.dft            # declare drift into the draft
 drafteine check    --all                    # every contract in the config
 ```
 
 `check` enforces contracts: missing drafted entries, type mismatches,
-`@strict` folder extras (`@allow` patterns tolerated), and `@max-lines`
-/ `@max-size` violations, with exit code 1 for CI. Folder-level metric
-annotations are recursive defaults, a file's own annotation overrides.
-`codeowners --check` gates CI on the generated file being in sync.
-`-` or piped stdin works everywhere a file does.
+`strict` folder extras (`allow:` patterns tolerated), `forbidden` paths,
+`count:` budgets, and `max-lines:` / `max-size:` violations, with exit
+code 1 for CI. Folder-level metrics are recursive defaults, a file's own
+attribute overrides. `codeowners --check` gates CI on the generated file
+being in sync. `-` or piped stdin works everywhere a file does.
 
 ## The VS Code extension
 
 `packages/vscode-extension` — packaged as `drafteine-*.vsix`
-(`code --install-extension <file>`). Diagnostics as you type, `@`
-completions with docs and examples, hover, outline, folding, Format
-Document, a live preview panel, one-click Apply, and continuous contract
-checking: declare contracts in `drafteine.config.json` (or a
+(`code --install-extension <file>`). Diagnostics as you type, attribute
+completions with docs and examples inside `{ }`, hover, outline, folding,
+Format Document, a live preview panel, one-click Apply, and continuous
+contract checking: declare contracts in `drafteine.config.json` (or a
 `"drafteine"` key in package.json) and violations appear in the Problems
 panel with Explorer badges as you work.
 
@@ -129,25 +148,21 @@ panel with Explorer badges as you work.
 {
   "contracts": [{ "draft": "structure.dft", "root": "." }],
   "templates": "./drafteine-templates",
-  "profiles": [
-    { "name": "pkg", "doc": "Workspace package root.",
-      "expands": { "allow": ["dist/", "node_modules/"] } }
-  ],
   "annotations": [
     { "name": "jira", "value": "string", "doc": "Tracking ticket." }
   ]
 }
 ```
 
-The config is plain JSON with a bundled schema: completion, hover docs,
-and validation come from your editor's standard JSON tooling, exactly
-like tsconfig.json.
+The config is machine-local plumbing only — policy lives in the draft,
+where it reviews. It is plain JSON with a bundled schema: completion,
+hover docs, and validation come from your editor's standard JSON
+tooling, exactly like tsconfig.json.
 
-`templates` names a directory whose files back `@template(path)` entries
-at apply time (verbatim, preflighted, never overwriting). `profiles` are
-named policy presets: `core/ @strict @pkg` behaves as if the expanded
-annotations were written on the entry. `annotations` declares custom
-vocabulary that completes and hovers like built-ins.
+`templates` names a directory whose files back `template:` entries at
+apply time (verbatim, preflighted, never overwriting). `annotations`
+declares custom attribute vocabulary that completes and hovers like
+built-ins.
 
 ## Layout
 

@@ -32,11 +32,9 @@ import {
 import {
   parse,
   runCheck,
-  applyProfiles,
   validateVocabulary,
   type ParseResult,
   type CheckIO,
-  type ProfileMap,
   type VocabularyMap,
 } from "@drafteine/core";
 
@@ -52,24 +50,6 @@ function parseVocab(cfg: Record<string, unknown> | undefined): VocabularyMap {
   for (const entry of list) {
     const e = entry as { name?: string; value?: string };
     if (e.name && /^[A-Za-z][\w-]*$/.test(e.name)) map[e.name] = { value: e.value };
-  }
-  return map;
-}
-
-function parseProfiles(cfg: Record<string, unknown> | undefined): ProfileMap {
-  const list = cfg?.profiles;
-  if (!Array.isArray(list)) return {};
-  const map: ProfileMap = {};
-  for (const entry of list) {
-    const e = entry as { name?: string; doc?: string; expands?: Record<string, unknown> };
-    if (!e.name || !/^[A-Za-z][\w-]*$/.test(e.name) || !e.expands) continue;
-    const expands: Record<string, string[] | null> = {};
-    for (const [k, v] of Object.entries(e.expands)) {
-      if (v === null) expands[k] = null;
-      else if (typeof v === "string") expands[k] = v.split(",").map((x) => x.trim()).filter(Boolean);
-      else if (Array.isArray(v)) expands[k] = v.map(String);
-    }
-    map[e.name] = { doc: e.doc, expands };
   }
   return map;
 }
@@ -102,7 +82,6 @@ export function activateCheck(context: ExtensionContext): void {
     timer = setTimeout(run, 400);
   };
 
-  let folderProfiles = new Map<string, ProfileMap>();
   let folderVocab = new Map<string, VocabularyMap>();
 
   function discoverContracts(folder: WorkspaceFolder): Contract[] {
@@ -139,7 +118,6 @@ export function activateCheck(context: ExtensionContext): void {
       // unreadable package.json is someone else's problem
     }
 
-    folderProfiles.set(base, parseProfiles(raw as Record<string, unknown> | undefined));
     folderVocab.set(base, parseVocab(raw as Record<string, unknown> | undefined));
     const contracts = (raw as { contracts?: unknown } | undefined)?.contracts;
     if (!Array.isArray(contracts)) return [];
@@ -175,14 +153,11 @@ export function activateCheck(context: ExtensionContext): void {
     const gen = ++generation;
 
     const all: Contract[] = [];
-    folderProfiles = new Map();
     folderVocab = new Map();
-    const contractProfiles = new Map<string, ProfileMap>();
     const contractVocab = new Map<string, VocabularyMap>();
     for (const folder of workspace.workspaceFolders ?? []) {
       const found = discoverContracts(folder);
       for (const c of found) {
-        contractProfiles.set(c.draftPath, folderProfiles.get(folder.uri.fsPath) ?? {});
         contractVocab.set(c.draftPath, folderVocab.get(folder.uri.fsPath) ?? {});
       }
       all.push(...found);
@@ -225,7 +200,6 @@ export function activateCheck(context: ExtensionContext): void {
         continue; // configured draft missing: nothing to check against
       }
       const result = parse(text);
-      applyProfiles(result, contractProfiles.get(contract.draftPath) ?? {});
       validateVocabulary(result, contractVocab.get(contract.draftPath) ?? {});
       const key = Uri.file(contract.draftPath).fsPath;
       const diags = perDraft.get(key) ?? [];

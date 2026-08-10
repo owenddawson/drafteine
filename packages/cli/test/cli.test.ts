@@ -77,11 +77,11 @@ test("snapshot emits a draft that apply can round-trip", () => {
 });
 
 test("check: conforming tree passes, missing file fails", () => {
-  const { dir, file } = tmpSetup("app/\n  main.ts\n  docs.md @optional\n");
+  const { dir, file } = tmpSetup("app/\n  main.ts\n  docs.md?\n");
   fs.mkdirSync(path.join(dir, "app"));
   fs.writeFileSync(path.join(dir, "app/main.ts"), "");
   const ok = run(["check", file, "--root", dir]);
-  assert.match(ok, /structure conforms/); // @optional absence is fine
+  assert.match(ok, /structure conforms/); // optional absence is fine
 
   fs.rmSync(path.join(dir, "app/main.ts"));
   let status = 0;
@@ -97,9 +97,9 @@ test("check: conforming tree passes, missing file fails", () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("check: @strict flags undeclared entries, @max-lines bounds files", () => {
+test("check: strict flags undeclared entries, max-lines bounds files", () => {
   const { dir, file } = tmpSetup(
-    "app/ @strict\n  main.ts @max-lines(3)\n"
+    "app/ { strict }\n  main.ts { max-lines: 3 }\n"
   );
   fs.mkdirSync(path.join(dir, "app"));
   fs.writeFileSync(path.join(dir, "app/main.ts"), "1\n2\n3\n4\n5\n");
@@ -112,8 +112,8 @@ test("check: @strict flags undeclared entries, @max-lines bounds files", () => {
     assert.equal(e.status, 1);
     out = e.stdout;
   }
-  assert.match(out, /app\/sprawl\.ts: undeclared direct child of @strict folder/);
-  assert.match(out, /app\/main\.ts: 6 lines, exceeds @max-lines\(3\)/);
+  assert.match(out, /app\/sprawl\.ts: undeclared direct child of strict folder/);
+  assert.match(out, /app\/main\.ts: 6 lines, exceeds max-lines: 3/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -147,11 +147,11 @@ test("fmt --check exits 1 on unformatted, 0 after --write", () => {
 test("codeowners emits patterns, parents before children, @ prefixed", () => {
   const { dir, file } = tmpSetup(
     [
-      "packages/ @owner(core)",
-      "  billing/ @owner(@org/billing-team money@example.com)",
+      "packages/ { owner: core }",
+      "  billing/ { owner: @org/billing-team money@example.com }",
       "    api.ts",
       "docs/",
-      "  guide.md @owner(writers)",
+      "  guide.md { owner: writers }",
     ].join("\n")
   );
   const out = run(["codeowners", file]);
@@ -177,7 +177,7 @@ test("codeowners emits patterns, parents before children, @ prefixed", () => {
 
 test("apply writes template content, preflight aborts everything", () => {
   const { dir, file } = tmpSetup(
-    "app/\n  main.cpp @template(cpp/main.cpp)\n  README.md\n"
+    "app/\n  main.cpp { template: cpp/main.cpp }\n  README.md\n"
   );
   fs.mkdirSync(path.join(dir, "tpl/cpp"), { recursive: true });
   fs.writeFileSync(path.join(dir, "tpl/cpp/main.cpp"), "int main() { return 0; }\n");
@@ -201,7 +201,7 @@ test("apply writes template content, preflight aborts everything", () => {
   // Missing template: hard error, nothing created at all.
   const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "drafteine-"));
   const file2 = path.join(dir2, "draft.dft");
-  fs.writeFileSync(file2, "app/\n  a.txt @template(gone.txt)\n  b.txt\n");
+  fs.writeFileSync(file2, "app/\n  a.txt { template: gone.txt }\n  b.txt\n");
   fs.writeFileSync(
     path.join(dir2, "drafteine.config.json"),
     JSON.stringify({ templates: "./tpl" })
@@ -216,14 +216,14 @@ test("apply writes template content, preflight aborts everything", () => {
   assert.ok(!fs.existsSync(path.join(dir2, "app")), "preflight must abort all creation");
 
   // Traversal and folder templates are rejected.
-  fs.writeFileSync(file2, "evil.txt @template(../draft.dft)\n");
+  fs.writeFileSync(file2, "evil.txt { template: ../draft.dft }\n");
   try {
     run(["apply", file2, "--root", dir2]);
     assert.fail("expected exit 1");
   } catch (e: any) {
     assert.equal(e.status, 1);
   }
-  fs.writeFileSync(file2, "sub/ @template(x)\n");
+  fs.writeFileSync(file2, "sub/ { template: x }\n");
   try {
     run(["apply", file2, "--root", dir2]);
     assert.fail("expected exit 1");
@@ -235,7 +235,7 @@ test("apply writes template content, preflight aborts everything", () => {
 });
 
 test("json output for tree and check", () => {
-  const { dir, file } = tmpSetup("app/ @strict\n  main.ts @max-lines(2)\n");
+  const { dir, file } = tmpSetup("app/ { strict }\n  main.ts { max-lines: 2 }\n");
   const tree = JSON.parse(run(["tree", file, "--json"]));
   assert.equal(tree.tree[0].name, "app");
   assert.equal(tree.tree[0].kind, "folder");
@@ -260,12 +260,12 @@ test("json output for tree and check", () => {
 
 test("docs renders a markdown repo map from comments", () => {
   const { dir, file } = tmpSetup(
-    "app/ @strict # the application\n  main.ts @max-lines(9) # entry point\n"
+    "app/ { strict } # the application\n  main.ts { max-lines: 9 } # entry point\n"
   );
   const out = run(["docs", file]);
   assert.equal(
     out,
-    "- **app/** \`@strict\`: the application\n  - \`main.ts\` \`@max-lines(9)\`: entry point\n"
+    "- **app/** \`strict\`: the application\n  - \`main.ts\` \`max-lines: 9\`: entry point\n"
   );
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -337,7 +337,7 @@ test("check --all aggregates every configured contract", () => {
 });
 
 test("accept amends the draft file and reports decisions", () => {
-  const { dir, file } = tmpSetup("app/ @strict\n  main.ts @max-lines(2)\n");
+  const { dir, file } = tmpSetup("app/ { strict }\n  main.ts { max-lines: 2 }\n");
   fs.mkdirSync(path.join(dir, "app"));
   fs.writeFileSync(path.join(dir, "app/main.ts"), "1\n2\n3\n");
   fs.writeFileSync(path.join(dir, "app/extra.ts"), "");
@@ -384,11 +384,11 @@ test("init scaffolds contract, config, and agent rules once", () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("owner resolves the deepest covering @owner", () => {
+test("owner resolves the deepest covering owner", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "drafteine-"));
   fs.writeFileSync(
     path.join(dir, "structure.dft"),
-    "services/ @owner(@acme/platform)\n  billing/ @owner(@acme/billing)\n    api.ts\ndocs/\n  guide.md\n"
+    "services/ { owner: @acme/platform }\n  billing/ { owner: @acme/billing }\n    api.ts\ndocs/\n  guide.md\n"
   );
   assert.equal(run(["owner", "services/billing/api.ts", "--root", dir]).trim(), "@acme/billing");
   assert.equal(run(["owner", "services", "--root", dir]).trim(), "@acme/platform");

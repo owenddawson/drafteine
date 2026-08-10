@@ -109,10 +109,10 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
     client.notify("initialized", {});
 
     // Emoji before the error: 🚀 is 2 UTF-16 units — range must still land
-    // on the annotation junk, not drift.
+    // on the container junk, not drift.
     // Trailing blank-line run makes the doc unformatted, so formatting
     // returns a real edit below.
-    const text = "app/\n  🚀 rocket.txt @@bad\n\n\n";
+    const text = "app/ { s }\n  🚀 rocket.txt { @@bad }\n\n\n";
     const uri = "file:///draft.dft";
     const diagsPromise = client.waitFor("textDocument/publishDiagnostics");
     client.notify("textDocument/didOpen", {
@@ -122,18 +122,25 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
       diagnostics: Array<{ range: { start: { line: number; character: number } }; message: string }>;
     };
     assert.equal(diags.diagnostics.length, 1);
-    assert.match(diags.diagnostics[0].message, /Expected @annotation/);
+    assert.match(diags.diagnostics[0].message, /Expected an attribute/);
     assert.equal(diags.diagnostics[0].range.start.line, 1);
-    // "  🚀 rocket.txt " = 2 + 2 + 1 + 10 + 1 = 16 UTF-16 units
-    assert.equal(diags.diagnostics[0].range.start.character, 16);
+    // "  🚀 rocket.txt { " = 2 + 2 + 1 + 10 + 1 + 1 + 1 = 18 UTF-16 units
+    assert.equal(diags.diagnostics[0].range.start.character, 18);
 
+    // Inside the container on line 0 (after "app/ { ").
     const completions = (await client.request("textDocument/completion", {
+      textDocument: { uri },
+      position: { line: 0, character: 7 },
+    })) as Array<{ label: string }>;
+    const labels = completions.map((c) => c.label);
+    assert.ok(labels.includes("strict")); // folder line offers strict
+    assert.ok(labels.includes("template"));
+    // Outside any container there are no attribute completions.
+    const outside = (await client.request("textDocument/completion", {
       textDocument: { uri },
       position: { line: 0, character: 4 },
     })) as Array<{ label: string }>;
-    const labels = completions.map((c) => c.label);
-    assert.ok(labels.includes("@strict")); // folder line offers @strict
-    assert.ok(labels.includes("@template"));
+    assert.equal(outside.length, 0);
 
     // Document symbols must round-trip the client's strict DocumentSymbol
     // validation: every position a real uinteger column, never a sentinel.
@@ -215,7 +222,7 @@ test("config language: validated as config, never parsed as a draft", async () =
         version: 1,
         text: JSON.stringify({
           contract: ["typo.dft"],
-          profiles: [{ name: "pkg", expands: { strict: null } }],
+          profiles: [{ name: "pkg", expands: { allow: ["dist/"] } }],
         }),
       },
     });
@@ -223,11 +230,11 @@ test("config language: validated as config, never parsed as a draft", async () =
     const messages = diags.diagnostics.map((d) => d.message);
     assert.ok(messages.some((m) => /Unknown key "contract"/.test(m)), "unknown key flagged");
     assert.ok(
-      messages.some((m) => /may not expand @strict/.test(m)),
-      "profile boundary enforced"
+      messages.some((m) => /Presets moved into the draft/.test(m)),
+      "config presets rejected with migration pointer"
     );
-    // No draft-parser noise: nothing about indentation or annotations syntax.
-    assert.ok(!messages.some((m) => /Expected @annotation/.test(m)));
+    // No draft-parser noise: nothing about indentation or attribute syntax.
+    assert.ok(!messages.some((m) => /Expected an attribute/.test(m)));
 
     // Formatting pretty-prints config JSON with key order preserved.
     const edits = (await client.request("textDocument/formatting", {
@@ -271,16 +278,16 @@ test("declared vocabulary from drafteine.config.json completes and documents", a
     client.notify("initialized", {});
     const uri = "file:///vocab.dft";
     client.notify("textDocument/didOpen", {
-      textDocument: { uri, languageId: "drafteine", version: 1, text: "main.ts\n" },
+      textDocument: { uri, languageId: "drafteine", version: 1, text: "main.ts { }\n" },
     });
     const completions = (await client.request("textDocument/completion", {
       textDocument: { uri },
-      position: { line: 0, character: 7 },
+      position: { line: 0, character: 10 },
     })) as Array<{ label: string; documentation?: { value: string } }>;
-    const owner = completions.find((c) => c.label === "@owner");
-    assert.ok(owner, "custom @owner completion missing");
+    const owner = completions.find((c) => c.label === "owner");
+    assert.ok(owner, "custom owner completion missing");
     assert.match(owner.documentation?.value ?? "", /Team that owns this entry/);
-    assert.ok(completions.some((c) => c.label === "@generated"));
+    assert.ok(completions.some((c) => c.label === "generated"));
     await client.request("shutdown", {});
   } finally {
     client.kill();

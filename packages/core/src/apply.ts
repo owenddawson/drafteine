@@ -43,7 +43,7 @@ export function runApply(
   for (const op of ops) {
     if (op.template === null) continue;
     if (op.type === "mkdir") {
-      errors.push(`${op.path}: @template is not allowed on folders`);
+      errors.push(`${op.path}: template is not allowed on folders`);
       continue;
     }
     if (!cache.has(op.template)) {

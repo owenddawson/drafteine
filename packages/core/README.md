@@ -7,7 +7,7 @@ runs in Node, browsers, and workers. All filesystem access is injectable.
 ```ts
 import { parse, plan, runCheck } from "@drafteine/core";
 
-const { root, diagnostics } = parse("app/ @strict\n  main.ts @max-lines(200)\n");
+const { root, diagnostics } = parse("app/ { strict }\n  main.ts { max-lines: 200 }\n");
 ```
 
 Part of Drafteine: draft file trees as text, preview them live,

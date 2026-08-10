@@ -12,6 +12,14 @@
       }
     },
     {
+      "comment": "Preset definition line",
+      "match": "^(preset)[ \\t]+([A-Za-z][\\w-]*)",
+      "captures": {
+        "1": { "name": "keyword.control.preset.drafteine" },
+        "2": { "name": "entity.name.function.preset.drafteine" }
+      }
+    },
+    {
       "comment": "Full-line or trailing comment (whitespace-preceded #)",
       "match": "(?:^|\\s)(#.*)$",
       "captures": {
@@ -19,37 +27,66 @@
       }
     },
     {
-      "comment": "Quoted name or value",
+      "comment": "Attribute container: { key: value, flag, preset: name }",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.container.begin.drafteine" } },
+      "endCaptures": { "0": { "name": "punctuation.section.container.end.drafteine" } },
+      "patterns": [
+        {
+          "match": "(?:^|\\s)(#.*)$",
+          "captures": { "1": { "name": "comment.line.number-sign.drafteine" } }
+        },
+        {
+          "match": "\"(?:[^\"\\\\]|\\\\.)*\"",
+          "name": "string.quoted.double.drafteine"
+        },
+        {
+          "comment": "key: value pair",
+          "match": "([A-Za-z][\\w-]*)[ \\t]*(:)",
+          "captures": {
+            "1": { "name": "entity.name.function.attribute.drafteine" },
+            "2": { "name": "punctuation.separator.key-value.drafteine" }
+          }
+        },
+        {
+          "comment": "Bare flag",
+          "match": "[A-Za-z][\\w-]*",
+          "name": "keyword.other.flag.drafteine"
+        },
+        {
+          "match": "[\\[\\],]",
+          "name": "punctuation.separator.list.drafteine"
+        }
+      ]
+    },
+    {
+      "comment": "Quoted name",
       "match": "\"(?:[^\"\\\\]|\\\\.)*\"",
       "name": "string.quoted.double.drafteine"
     },
     {
-      "comment": "Annotation key with optional value",
-      "match": "(?:(?<=\\s)|^)(@[A-Za-z][\\w-]*)(?:(\\()([^)]*)(\\)))?",
-      "captures": {
-        "1": { "name": "entity.name.function.annotation.drafteine" },
-        "2": { "name": "punctuation.definition.annotation.begin.drafteine" },
-        "3": { "name": "string.unquoted.annotation-value.drafteine" },
-        "4": { "name": "punctuation.definition.annotation.end.drafteine" }
-      }
-    },
-    {
-      "comment": "Folder line: bare name ending in /",
-      "match": "^\\s*([^@#\\s][^@#]*?)(/)(?=\\s|$)",
+      "comment": "Folder name ending in /, including the last segment of a folder path",
+      "match": "([^#{\\s][^#{]*?)(/)(?=[\\s?]|$)",
       "captures": {
         "1": { "name": "entity.name.tag.folder.drafteine" },
         "2": { "name": "punctuation.separator.folder.drafteine" }
       }
     },
     {
-      "comment": "File extension",
-      "match": "(\\.[A-Za-z0-9]+)(?=\\s|$)",
-      "name": "constant.other.extension.drafteine"
+      "comment": "Path separator inside a sparse path line",
+      "match": "/",
+      "name": "punctuation.separator.path.drafteine"
     },
     {
-      "comment": "Block braces (v0.3 block form)",
-      "match": "[{}]",
-      "name": "punctuation.section.block.drafteine"
+      "comment": "Optional sigil",
+      "match": "\\?(?=\\s|$)",
+      "name": "keyword.operator.optional.drafteine"
+    },
+    {
+      "comment": "File extension",
+      "match": "(\\.[A-Za-z0-9]+)(?=[\\s?]|$)",
+      "name": "constant.other.extension.drafteine"
     }
   ]
 }

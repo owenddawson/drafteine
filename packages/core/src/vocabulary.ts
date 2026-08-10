@@ -19,11 +19,11 @@ export function validateVocabulary(result: ParseResult, vocab: VocabularyMap): v
       const shape = decl.value ?? "string";
       let message: string | null = null;
       if (shape === "flag" && a.value !== null) {
-        message = `@${a.key} takes no value.`;
+        message = `“${a.key}” takes no value.`;
       } else if (shape === "number" && (a.value === null || Number.isNaN(Number(a.value)) || a.value.trim() === "")) {
-        message = `@${a.key} requires a numeric value.`;
+        message = `“${a.key}” requires a numeric value.`;
       } else if (shape === "string" && a.value === null) {
-        message = `@${a.key} requires a value.`;
+        message = `“${a.key}” requires a value.`;
       }
       if (message) {
         result.diagnostics.push({ from: a.from, to: a.to, severity: "warning", message });

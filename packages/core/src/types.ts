@@ -25,7 +25,8 @@ export type LineKind =
   | "file"
   | "annotation"
   | "block-end"
-  | "pragma";
+  | "pragma"
+  | "preset";
 
 export interface Annotation {
   key: string;
@@ -52,10 +53,14 @@ export interface Line {
   errors: Diagnostic[];
   spans: { name?: [number, number]; comment?: [number, number]; version?: [number, number] };
   node?: TreeNode;
-  /** True when this entry line opens a `{ … }` annotation block. */
+  /** True when this entry line opens an expanded `{ … }` container. */
   opensBlock?: boolean;
   /** Declared format version. Set only on a valid pragma line. */
   version?: number;
+  /** For path lines: every segment, leaf included. `name` is the leaf. */
+  path?: string[];
+  /** For preset definition lines: the preset's name. */
+  presetName?: string;
 }
 
 export interface TreeNode {
@@ -87,6 +92,8 @@ export interface ParseResult {
   /** Format version the draft declares via its pragma. A draft without a
    *  pragma is format 1, permanently, so old drafts never change meaning. */
   version: number;
+  /** Presets defined in this draft, already applied to `preset:` refs. */
+  presets: ProfileMap;
 }
 
 export interface PlanOp {
@@ -121,14 +128,14 @@ export interface Violation {
     | "forbidden"
     | "count"
     | "bad-annotation";
-  /** The declaring node. For strict extras this is the @strict folder itself. */
+  /** The declaring node. For strict extras this is the strict folder itself. */
   node: TreeNode;
   /** For strict-extra violations: what kind of entry sits on disk. */
   entryKind?: "file" | "dir";
 }
 
-/** A profile expands to a set of annotations. Values are item lists,
- *  null for flags. Declared in config, never in drafts. */
+/** A preset expands to a set of attributes. Values are item lists,
+ *  null for flags. Defined in the draft with `preset name { … }`. */
 export type ProfileMap = Record<
   string,
   { doc?: string; expands: Record<string, string[] | null> }

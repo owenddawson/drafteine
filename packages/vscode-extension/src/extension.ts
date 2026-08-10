@@ -276,7 +276,7 @@ function rowHtml(line: Line, isBranch: boolean): string {
   const caret = `<span class="caret">${isBranch ? CHEVRON_SVG : ""}</span>`;
   const chips = line.annotations
     .filter((a) => !a.fromProfile)
-    .map((a) => `<span class="chip">@${esc(a.key)}${a.value !== null ? `(${esc(a.value)})` : ""}</span>`)
+    .map((a) => `<span class="chip">${esc(a.key)}${a.value !== null ? `: ${esc(a.value)}` : ""}</span>`)
     .join("");
   const note = hasError ? `<span class="err">${esc(line.errors[0].message)}</span>` : "";
   return (

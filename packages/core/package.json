@@ -1,6 +1,6 @@
 {
   "name": "@drafteine/core",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Parser, diagnostics, and plan generator for the Drafteine file-tree language. Zero dependencies, no DOM.",
   "type": "module",
   "main": "dist/index.js",

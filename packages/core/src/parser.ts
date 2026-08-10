@@ -7,15 +7,18 @@
  * render them in place, degraded rather than missing.
  *
  * Grammar summary (see SPEC.md for the full version):
- *   line        := indent (comment | entry)?
+ *   line        := indent (comment | pragma | preset | entry)?
  *   indent      := ("  " | "\t")*          -- one unit = 2 spaces or 1 tab
  *   comment     := "#" .*
  *   pragma      := "drafteine" number      -- first content line only
- *   entry       := name "/"? annotation* trailing-comment?
- *   annotation  := whitespace "@" word ("(" value ")")?
+ *   preset      := "preset" name container -- unindented
+ *   entry       := path "/"? "?"? container? trailing-comment?
+ *   path        := name ("/" name)*        -- one segment or a sparse path
+ *   container   := "{" items "}"           -- inline, or expanded over lines
+ *   item        := key ":" value | key     -- flags are bare words
  *
- * `@` and `#` are only syntax when preceded by whitespace, so `@types/` and
- * `file@2x.png` are ordinary names.
+ * `#` is only syntax when preceded by whitespace, so `notes#1.md` is an
+ * ordinary name. Attributes never trail bare: they live in the container.
  */
 
 import {
@@ -28,64 +31,24 @@ import {
 } from "./types.js";
 import { scanPragma } from "./pragma.js";
 import {
-  FORBIDDEN_NAME_CHARS,
+  collectPresets,
+  scanContainer,
+  scanItems,
+  validateEntryAttributes,
+} from "./attributes.js";
+import { applyProfiles } from "./profiles.js";
+import {
   NAME_BOUNDARY_RE,
   QUOTED_NAME_RE,
+  nameComplaint,
   unescape,
 } from "./names.js";
 export { needsQuoting, quoteName, quoteValue } from "./names.js";
 
-/** Annotation key: @word. Values are scanned by scanAnnotation. */
-const ANNOTATION_KEY_RE = /^@([A-Za-z][\w-]*)/;
+/** Preset definitions look like `preset name { … }` on an unindented line. */
+const PRESET_TRIGGER_RE = /^preset[ \t]+/;
+const PRESET_NAME_RE = /^[A-Za-z][\w-]*/;
 
-/**
- * Scan one annotation at raw[cursor]: @key, @key(value), or
- * @key(item, "quoted item", other). Returns null when malformed.
- */
-function scanAnnotation(
-  raw: string,
-  cursor: number
-): { key: string; value: string | null; values: string[]; end: number } | null {
-  const m = ANNOTATION_KEY_RE.exec(raw.slice(cursor));
-  if (!m) return null;
-  let i = cursor + m[0].length;
-  if (raw[i] !== "(") return { key: m[1], value: null, values: [], end: i };
-  i++;
-  const items: string[] = [];
-  for (;;) {
-    while (raw[i] === " ") i++;
-    if (raw[i] === ")") {
-      i++;
-      break;
-    }
-    if (i >= raw.length) return null;
-    if (raw[i] === '"') {
-      const q = QUOTED_NAME_RE.exec(raw.slice(i));
-      if (!q) return null;
-      items.push(unescape(q[1]));
-      i += q[0].length;
-    } else {
-      let j = i;
-      while (j < raw.length && raw[j] !== "," && raw[j] !== ")") j++;
-      if (j >= raw.length) return null;
-      const item = raw.slice(i, j).trim();
-      if (item !== "") items.push(item);
-      i = j;
-    }
-    while (raw[i] === " ") i++;
-    if (raw[i] === ",") {
-      i++;
-      continue;
-    }
-    if (raw[i] === ")") {
-      i++;
-      break;
-    }
-    return null;
-  }
-  const value = items.length === 0 ? "" : items.join(", ");
-  return { key: m[1], value, values: items, end: i };
-}
 export function parse(text: string): ParseResult {
   const rawLines = text.split("\n");
   const lines: Line[] = [];
@@ -107,66 +70,17 @@ export function parse(text: string): ParseResult {
   // The document's spaces-per-level, inferred from the first space-indented
   // structural line (so pasted 4-space trees parse cleanly). 0 = not yet known.
   let docIndentUnit = 0;
-  // The entry line whose `{ … }` block we are currently inside, if any.
+  // The line whose expanded `{ … }` container we are currently inside, if any.
   let blockOwner: Line | null = null;
   // False until the first non-blank, non-comment line: the pragma position.
   let seenContent = false;
   // Format version from a valid pragma. Absent means 1, permanently.
   let docVersion = 1;
 
-  /** Scan annotations / trailing comment / `{` after a name or on a block line. */
-  function scanTrailer(line: Line, raw: string, start: number, allowBrace: boolean): void {
-    let cursor = start;
-    while (cursor < raw.length) {
-      if (raw[cursor] === " ") {
-        cursor++;
-        continue;
-      }
-      if (raw[cursor] === "#") {
-        line.spans.comment = [line.from + cursor, line.to];
-        return;
-      }
-      if (allowBrace && raw[cursor] === "{") {
-        line.opensBlock = true;
-        const after = raw.slice(cursor + 1).trimStart();
-        if (after.startsWith("#")) {
-          const at = raw.indexOf("#", cursor + 1);
-          line.spans.comment = [line.from + at, line.to];
-        } else if (after !== "") {
-          addError(line, diagnostics, {
-            from: line.from + cursor + 1,
-            to: line.to,
-            severity: "error",
-            message: "“{” must end the line.",
-          });
-        }
-        return;
-      }
-      if (raw[cursor] === "@") {
-        const a = scanAnnotation(raw, cursor);
-        if (a) {
-          line.annotations.push({
-            key: a.key,
-            value: a.value,
-            values: a.values,
-            from: line.from + cursor,
-            to: line.from + a.end,
-          });
-          cursor = a.end;
-          continue;
-        }
-      }
-      addError(line, diagnostics, {
-        from: line.from + cursor,
-        to: line.to,
-        severity: "error",
-        message: allowBrace
-          ? "Expected @annotation, “{”, or # comment after the name."
-          : "Expected @annotation, “}”, or # comment inside the block.",
-      });
-      return;
-    }
-  }
+  const ws = (raw: string, i: number): number => {
+    while (raw[i] === " " || raw[i] === "\t") i++;
+    return i;
+  };
 
   for (let i = 0; i < rawLines.length; i++) {
     const raw = rawLines[i];
@@ -225,7 +139,7 @@ export function parse(text: string): ParseResult {
     }
     seenContent = true;
 
-    // --- inside a { } block --------------------------------------------
+    // --- inside an expanded { } container --------------------------------
     if (blockOwner) {
       const trimmed = rest.trimEnd();
       if (trimmed.startsWith("}")) {
@@ -242,21 +156,11 @@ export function parse(text: string): ParseResult {
         blockOwner = null;
         continue;
       }
-      if (rest.startsWith("@")) {
-        line.kind = "annotation";
-        line.depth = blockOwner.depth + 1;
-        scanTrailer(line, raw, indentEnd, false);
-        blockOwner.annotations.push(...line.annotations);
-        continue;
-      }
-      addError(line, diagnostics, {
-        from: line.from + indentEnd,
-        to: line.to,
-        severity: "error",
-        message: `Expected @annotation or “}” in the block of “${blockOwner.name}”. Closing the block.`,
-      });
-      blockOwner = null;
-      // fall through: parse this line as a normal entry (recovery)
+      line.kind = "annotation";
+      line.depth = blockOwner.depth + 1;
+      scanItems(line, raw, indentEnd, false, diagnostics);
+      blockOwner.annotations.push(...line.annotations);
+      continue;
     }
 
     if (rest.trimEnd() === "}") {
@@ -265,8 +169,41 @@ export function parse(text: string): ParseResult {
         from: line.from + indentEnd,
         to: line.to,
         severity: "error",
-        message: "Unmatched “}”. There is no open block.",
+        message: "Unmatched “}”. There is no open container.",
       });
+      continue;
+    }
+
+    // --- preset definition: unindented `preset name { … }` ----------------
+    if (indentEnd === 0 && !rest.startsWith('"') && PRESET_TRIGGER_RE.test(rest)) {
+      line.kind = "preset";
+      let cursor = pos + rest.match(PRESET_TRIGGER_RE)![0].length;
+      const nm = PRESET_NAME_RE.exec(raw.slice(cursor));
+      if (!nm) {
+        addError(line, diagnostics, {
+          from: line.from + cursor,
+          to: line.to,
+          severity: "error",
+          message: "Preset needs a name: “preset name { … }”.",
+        });
+        continue;
+      }
+      line.presetName = nm[0];
+      line.name = nm[0];
+      line.spans.name = [line.from + cursor, line.from + cursor + nm[0].length];
+      cursor = ws(raw, cursor + nm[0].length);
+      if (raw[cursor] === "{") {
+        cursor = ws(raw, scanContainer(line, raw, cursor, diagnostics));
+        if (raw[cursor] === "#") line.spans.comment = [line.from + cursor, line.to];
+      } else {
+        addError(line, diagnostics, {
+          from: line.from + cursor,
+          to: line.to,
+          severity: "error",
+          message: "Preset needs a “{ … }” container with its attributes.",
+        });
+      }
+      if (line.opensBlock) blockOwner = line;
       continue;
     }
 
@@ -313,13 +250,16 @@ export function parse(text: string): ParseResult {
     }
     line.depth = depth;
 
-    // --- name ----------------------------------------------------------
-    // Quoted form: "anything \" escaped", optionally followed by `/`.
-    // Bare form runs to the first whitespace-preceded @ or #, or end of
-    // line, so `@types/` and `file@2x.png` parse as names.
+    // --- name, path, sigils ----------------------------------------------
+    // Quoted form: a single literal segment, optionally `/` then `?`.
+    // Bare form runs to the first whitespace-preceded `{` or `#`, or end
+    // of line. `/` inside it makes a path line; trailing `?` marks the
+    // leaf optional.
     let name: string;
     let nameEnd: number;
-    if (rest.startsWith('"')) {
+    let optionalSigil = false;
+    const wasQuoted = rest.startsWith('"');
+    if (wasQuoted) {
       const q = QUOTED_NAME_RE.exec(rest);
       if (q) {
         name = unescape(q[1]);
@@ -328,7 +268,19 @@ export function parse(text: string): ParseResult {
           line.isFolder = true;
           end++;
         }
+        if (rest[end] === "?") {
+          optionalSigil = true;
+          end++;
+        }
         nameEnd = pos + end;
+        if (name.includes("/")) {
+          addError(line, diagnostics, {
+            from: line.from + pos,
+            to: line.from + nameEnd,
+            severity: "error",
+            message: "A quoted name is a single segment. Write paths unquoted.",
+          });
+        }
       } else {
         // Strip the opening quote so the forbidden-`"` rule doesn't
         // pile a second diagnostic onto the same mistake.
@@ -343,11 +295,31 @@ export function parse(text: string): ParseResult {
       }
     } else {
       const boundary = NAME_BOUNDARY_RE.exec(rest);
-      name = (boundary ? boundary[1] : rest).trimEnd();
-      nameEnd = pos + name.length;
-      if (name.endsWith("/")) {
+      const rawHead = (boundary ? boundary[1] : rest).trimEnd();
+      nameEnd = pos + rawHead.length;
+      let head = rawHead;
+      if (head.endsWith("?")) {
+        optionalSigil = true;
+        head = head.slice(0, -1);
+      }
+      if (head.endsWith("/")) {
         line.isFolder = true;
-        name = name.slice(0, -1);
+        head = head.slice(0, -1);
+      }
+      name = head;
+      if (name.includes("/")) {
+        const segments = name.split("/");
+        if (segments.some((s) => s === "")) {
+          addError(line, diagnostics, {
+            from: line.from + pos,
+            to: line.from + nameEnd,
+            severity: "error",
+            message: "Empty path segment. Segments sit between single “/” separators.",
+          });
+        } else {
+          line.path = segments;
+          name = segments[segments.length - 1];
+        }
       }
     }
     const nameSpan: [number, number] = [line.from + pos, line.from + nameEnd];
@@ -355,39 +327,19 @@ export function parse(text: string): ParseResult {
     line.kind = line.isFolder ? "folder" : "file";
     line.spans.name = nameSpan;
 
-    if (name === "") {
-      addError(line, diagnostics, {
-        from: nameSpan[0],
-        to: Math.max(nameSpan[0] + 1, nameSpan[1]),
-        severity: "error",
-        message: line.isFolder
-          ? "Folder has no name."
-          : "Expected a file or folder name.",
-      });
-    } else if (name === "." || name === "..") {
-      addError(line, diagnostics, {
-        from: nameSpan[0],
-        to: nameSpan[1],
-        severity: "error",
-        message: `“${name}” is not a valid name. It refers to a directory position, not an entry.`,
-      });
-    } else if (FORBIDDEN_NAME_CHARS.test(name)) {
-      addError(line, diagnostics, {
-        from: nameSpan[0],
-        to: nameSpan[1],
-        severity: "error",
-        message: `Name contains a character not allowed in paths: ${
-          name.match(FORBIDDEN_NAME_CHARS)![0]
-        }`,
-      });
-    } else if (name.includes("/")) {
-      addError(line, diagnostics, {
-        from: nameSpan[0],
-        to: nameSpan[1],
-        severity: "error",
-        message: "“/” can only appear at the end of a folder name.",
-      });
-    } else if (!rest.startsWith('"') && /^drafteine[ \t]+[0-9]+$/.test(name)) {
+    for (const segment of line.path ?? [name]) {
+      const complaint = nameComplaint(segment, line.isFolder);
+      if (complaint) {
+        addError(line, diagnostics, {
+          from: nameSpan[0],
+          to: Math.max(nameSpan[0] + 1, nameSpan[1]),
+          severity: "error",
+          message: complaint,
+        });
+        break;
+      }
+    }
+    if (!wasQuoted && !line.path && /^drafteine[ \t]+[0-9]+$/.test(name)) {
       addError(line, diagnostics, {
         from: nameSpan[0],
         to: nameSpan[1],
@@ -396,12 +348,73 @@ export function parse(text: string): ParseResult {
       });
     }
 
-    // --- annotations, trailing comment, optional `{` --------------------
-    scanTrailer(line, raw, nameEnd, true);
+    if (optionalSigil) {
+      line.annotations.push({
+        key: "optional",
+        value: null,
+        values: [],
+        from: line.from + nameEnd - 1,
+        to: line.from + nameEnd,
+      });
+    }
+
+    // --- container and trailing comment ----------------------------------
+    let cursor = ws(raw, nameEnd);
+    if (raw[cursor] === "{") {
+      cursor = ws(raw, scanContainer(line, raw, cursor, diagnostics));
+    }
+    if (raw[cursor] === "#") {
+      line.spans.comment = [line.from + cursor, line.to];
+    } else if (raw.slice(cursor).trim() !== "" && !line.spans.comment) {
+      const stale = /^@[A-Za-z]/.test(raw.slice(cursor));
+      addError(line, diagnostics, {
+        from: line.from + cursor,
+        to: line.to,
+        severity: "error",
+        message: stale
+          ? "Trailing “@key” annotations are pre-release syntax. Attributes go in a “{ … }” container."
+          : "Expected “{ attributes }” or a # comment after the name.",
+      });
+    }
 
     // --- link into the tree --------------------------------------------
     stack.length = depth + 1;
-    const parent = stack[depth];
+    let parent = stack[depth];
+    let chainBroken = false;
+    for (const segment of (line.path ?? []).slice(0, -1)) {
+      const existing = parent.children.find((c) => c.name === segment);
+      if (existing && existing.isFolder) {
+        parent = existing;
+        continue;
+      }
+      if (existing) {
+        addError(line, diagnostics, {
+          from: nameSpan[0],
+          to: nameSpan[1],
+          severity: "error",
+          message: `“${segment}” is already declared as a file. A path cannot pass through it.`,
+        });
+        chainBroken = true;
+        break;
+      }
+      const implied: TreeNode = {
+        kind: "folder",
+        name: segment,
+        depth,
+        isFolder: true,
+        annotations: [],
+        children: [],
+        line,
+        parent,
+      };
+      parent.children.push(implied);
+      parent = implied;
+    }
+    if (chainBroken) {
+      prevStructural = line;
+      continue;
+    }
+
     const node: TreeNode = {
       kind: line.kind,
       name,
@@ -445,27 +458,25 @@ export function parse(text: string): ParseResult {
       from: blockOwner.from,
       to: blockOwner.to,
       severity: "error",
-      message: "Unclosed “{” block. Expected a closing “}”.",
+      message: "Unclosed “{” container. Expected a closing “}”.",
     });
   }
 
-  for (const l of lines) {
-    if (l.kind !== "folder" && l.kind !== "file") continue;
-    const seen = new Set<string>();
-    for (const a of l.annotations) {
-      if (seen.has(a.key)) {
-        addError(l, diagnostics, {
-          from: a.from,
-          to: a.to,
-          severity: "error",
-          message: `Duplicate @${a.key} on this entry. Defaults never combine.`,
-        });
-      }
-      seen.add(a.key);
-    }
-  }
+  validateEntryAttributes(lines, diagnostics);
+  const presets = collectPresets(lines, diagnostics);
 
-  const stats: Stats = { folders: 0, files: 0, errors: 0, warnings: 0 };
+  const result: ParseResult = {
+    lines,
+    root,
+    diagnostics,
+    stats: { folders: 0, files: 0, errors: 0, warnings: 0 },
+    indentUnit: docIndentUnit || INDENT_UNIT,
+    version: docVersion,
+    presets,
+  };
+  applyProfiles(result);
+
+  const stats: Stats = result.stats;
   for (const l of lines) {
     if (l.kind === "folder") stats.folders++;
     if (l.kind === "file") stats.files++;
@@ -474,15 +485,7 @@ export function parse(text: string): ParseResult {
     if (d.severity === "error") stats.errors++;
     else if (d.severity === "warning") stats.warnings++;
   }
-
-  return {
-    lines,
-    root,
-    diagnostics,
-    stats,
-    indentUnit: docIndentUnit || INDENT_UNIT,
-    version: docVersion,
-  };
+  return result;
 }
 
 export function addError(line: Line, diagnostics: Diagnostic[], diag: Diagnostic): void {

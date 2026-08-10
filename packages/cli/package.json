@@ -1,6 +1,6 @@
 {
   "name": "@drafteine/cli",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Drafteine CLI \u2014 plan, apply, and render .dft file trees.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@drafteine/core": "^0.14.0"
+    "@drafteine/core": "^0.15.0"
   },
   "license": "MIT",
   "devDependencies": {

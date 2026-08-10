@@ -1,6 +1,6 @@
 /**
  * Onboarding and ownership queries: init scaffolds a project's contract
- * and agent rules, owner resolves which @owner covers a path.
+ * and agent rules, owner resolves which owner attribute covers a path.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -34,16 +34,18 @@ This project's file structure is governed by structure.dft. Rules:
 
 1. Before creating any file, declare it in structure.dft first and show
    that draft diff for authorization. Folders end with /, two-space
-   indentation nests, annotations trail the name (@strict,
-   @max-lines(n), @forbidden, @count(n), @optional). The first line,
-   drafteine 1, is the format version pragma. Keep it first.
+   indentation nests, attributes sit in a { } container after the name
+   ({ strict }, { max-lines: 500 }, { forbidden }, { count: 6 }), a
+   trailing ? marks an entry optional, and a sparse path line like
+   src/deep/file.ts { max-lines: 300 } declares one deep entry. The
+   first line, drafteine 1, is the format version pragma. Keep it first.
 2. Run npx drafteine check --all before starting work and again after
    every change set.
 3. Never run drafteine accept autonomously. Accepting drift into the
    contract is a decision for a human reviewer: propose the change and
    wait. Never regenerate the whole draft, targeted edits only.
-4. Policy violations (@max-lines, @forbidden, @count) are decisions:
-   fix reality or change the annotation deliberately, never both
+4. Policy violations (max-lines, forbidden, count) are decisions:
+   fix reality or change the attribute deliberately, never both
    casually.
 `;
 
@@ -86,7 +88,7 @@ export function runInit(rootDir: string, agents: boolean): string[] {
   return notes;
 }
 
-/** Deepest @owner covering a draft-relative path, or null. */
+/** Deepest owner attribute covering a draft-relative path, or null. */
 export function resolveOwner(source: string, relPath: string): string | null {
   const result = parse(source);
   const segments = relPath.split("/").filter(Boolean);

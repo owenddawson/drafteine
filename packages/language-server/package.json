@@ -1,6 +1,6 @@
 {
   "name": "@drafteine/language-server",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Language Server Protocol implementation for the Drafteine file-tree language: diagnostics, formatting, completions, hover docs.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@drafteine/core": "^0.14.0",
+    "@drafteine/core": "^0.15.0",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
