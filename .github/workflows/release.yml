@@ -40,3 +40,8 @@ jobs:
         working-directory: packages/vscode-extension
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - name: Publish extension to Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx ovsx publish out/*.vsix -p "$OVSX_PAT"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
