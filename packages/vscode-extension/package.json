@@ -13,6 +13,16 @@
     "Programming Languages",
     "Linters"
   ],
+  "keywords": [
+    "file structure",
+    "scaffold",
+    "project structure",
+    "enforcement",
+    "tree",
+    "dft",
+    "codeowners",
+    "agents"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "workspaceContains:drafteine.config.json",

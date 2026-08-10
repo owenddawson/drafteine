@@ -103,6 +103,8 @@ playground/ { strict, allow: dist/ } # the browser demo, kept out of the package
     style.css
     vite-env.d.ts
 scratch/ { forbidden } # experiments belong outside the repo
+.vscode/ { strict } # workspace defaults for contributors
+  extensions.json # recommends the Drafteine extension
 .github/ { strict } # public contribution machinery
   workflows/ { strict }
     ci.yml # quality gates on every push and pull request

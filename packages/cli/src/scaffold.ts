@@ -75,6 +75,16 @@ export function runInit(rootDir: string, agents: boolean): string[] {
     notes.push("wrote drafteine.config.json");
   }
 
+  const extPath = path.join(rootDir, ".vscode", "extensions.json");
+  if (!fs.existsSync(extPath)) {
+    fs.mkdirSync(path.dirname(extPath), { recursive: true });
+    fs.writeFileSync(
+      extPath,
+      JSON.stringify({ recommendations: ["drafteine.drafteine"] }, null, 2) + "\n"
+    );
+    notes.push("wrote .vscode/extensions.json recommending the Drafteine extension");
+  }
+
   if (agents) {
     const agentsPath = path.join(rootDir, "AGENTS.md");
     const existing = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
