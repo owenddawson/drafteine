@@ -231,6 +231,11 @@ export function activateCheck(context: ExtensionContext): void {
         countLines: (p) =>
           fs.readFileSync(path.resolve(contract.rootDir, p), "utf8").split("\n").length,
         fileSize: (p) => fs.statSync(path.resolve(contract.rootDir, p)).size,
+        entries: (p) =>
+          fs.readdirSync(path.resolve(contract.rootDir, p), { withFileTypes: true }).map((e) => ({
+            name: e.name,
+            kind: e.isSymbolicLink() ? ("link" as const) : e.isDirectory() ? ("dir" as const) : ("file" as const),
+          })),
       };
 
       for (const v of runCheck(result.root, io)) {

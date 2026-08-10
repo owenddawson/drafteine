@@ -278,6 +278,16 @@ or a contract — *the verb decides what the document means*.
   metrics, and its subtree are checked normally.
 - `forbidden` on an entry: `check` fails if it exists, and `apply` never
   creates it. Bans dumping grounds and legacy paths by name.
+- `ban: [patterns]` on a folder bans matching **basenames through its
+  whole real subtree** — a ban you can escape by adding a subfolder is
+  not a ban. Same glob dialect as `allow` (single-name patterns, no `/`
+  or `**`, trailing slash = directories only). Bans accumulate downward
+  and **beat declarations**: a required declared entry matching an
+  effective ban makes the draft unsatisfiable; an optional one may only
+  be absent. `apply` never creates a banned path. Symlinks are never
+  followed, a trailing-slash pattern never matches a symlinked
+  directory, and an unreadable directory fails the check rather than
+  passing it. There is no unban and no piercing.
 - `count: n` on a folder: `check` fails when the folder has more than
   `n` direct entries on disk. Folder-local, never inherited — a nested
   folder's budget is its own decision.
@@ -295,6 +305,7 @@ or a contract — *the verb decides what the document means*.
 |---|---|---|
 | `max-lines`, `max-size` | constraint | **recursive default** for descendant files |
 | `owner` | owner | recursive ownership (via CODEOWNERS pattern semantics) |
+| `ban` | inert | **recursive**, accumulating — content policy, like metrics |
 | `strict`, `?`, `forbidden`, `count` | local | local — never inherits |
 
 Resolution for metric defaults: the file's own attribute wins, else the
@@ -332,7 +343,6 @@ has lost its reason to exist.
 
 ## Reserved for future formats
 
-- **Pattern bans** — `forbidden` on glob patterns, not just literal paths.
 - **Other block types** — the outline grammar is deliberately generic;
   task lists, tables, and diagrams can become sibling block types with
   their own preview plugins.

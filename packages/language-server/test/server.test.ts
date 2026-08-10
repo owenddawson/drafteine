@@ -19,10 +19,7 @@ class LspClient {
   private buffer = Buffer.alloc(0);
   private nextId = 1;
   private pending = new Map<number, (result: unknown) => void>();
-  private notificationWaiters: Array<{
-    method: string;
-    resolve: (params: unknown) => void;
-  }> = [];
+  private notificationWaiters: Array<{ method: string; resolve: (params: unknown) => void }> = [];
 
   constructor() {
     this.proc = spawn(process.execPath, [serverPath, "--stdio"], {
@@ -42,20 +39,13 @@ class LspClient {
       const length = Number(m[1]);
       const bodyStart = headerEnd + 4;
       if (this.buffer.length < bodyStart + length) return;
-      const body = JSON.parse(
-        this.buffer.subarray(bodyStart, bodyStart + length).toString()
-      );
+      const body = JSON.parse(this.buffer.subarray(bodyStart, bodyStart + length).toString());
       this.buffer = this.buffer.subarray(bodyStart + length);
       this.dispatch(body);
     }
   }
 
-  private dispatch(msg: {
-    id?: number;
-    method?: string;
-    result?: unknown;
-    params?: unknown;
-  }): void {
+  private dispatch(msg: { id?: number; method?: string; result?: unknown; params?: unknown }): void {
     if (msg.id !== undefined && msg.method === undefined) {
       this.pending.get(msg.id)?.(msg.result);
       this.pending.delete(msg.id);
@@ -86,9 +76,7 @@ class LspClient {
   }
 
   waitFor(method: string): Promise<unknown> {
-    return new Promise((resolve) =>
-      this.notificationWaiters.push({ method, resolve })
-    );
+    return new Promise((resolve) => this.notificationWaiters.push({ method, resolve }));
   }
 
   kill(): void {
@@ -100,9 +88,7 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
   const client = new LspClient();
   try {
     const init = (await client.request("initialize", {
-      processId: null,
-      rootUri: null,
-      capabilities: {},
+      processId: null, rootUri: null, capabilities: {},
     })) as { capabilities: Record<string, unknown> };
     assert.ok(init.capabilities.completionProvider);
     assert.ok(init.capabilities.documentSymbolProvider);
@@ -118,9 +104,8 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
     client.notify("textDocument/didOpen", {
       textDocument: { uri, languageId: "drafteine", version: 1, text },
     });
-    const diags = (await diagsPromise) as {
-      diagnostics: Array<{ range: { start: { line: number; character: number } }; message: string }>;
-    };
+    const diags = (await diagsPromise) as
+      { diagnostics: Array<{ range: { start: { line: number; character: number } }; message: string }> };
     assert.equal(diags.diagnostics.length, 1);
     assert.match(diags.diagnostics[0].message, /Expected an attribute/);
     assert.equal(diags.diagnostics[0].range.start.line, 1);
@@ -129,34 +114,26 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
 
     // Inside the container on line 0 (after "app/ { ").
     const completions = (await client.request("textDocument/completion", {
-      textDocument: { uri },
-      position: { line: 0, character: 7 },
+      textDocument: { uri }, position: { line: 0, character: 7 },
     })) as Array<{ label: string }>;
     const labels = completions.map((c) => c.label);
     assert.ok(labels.includes("strict")); // folder line offers strict
     assert.ok(labels.includes("template"));
-    // Outside any container there are no attribute completions.
+    // Outside any container there are no attribute completions, only
+    // filesystem names, and this virtual document resolves to nothing real.
     const outside = (await client.request("textDocument/completion", {
-      textDocument: { uri },
-      position: { line: 0, character: 4 },
+      textDocument: { uri }, position: { line: 0, character: 4 },
     })) as Array<{ label: string }>;
-    assert.equal(outside.length, 0);
+    assert.ok(!outside.some((c) => c.label === "strict"));
 
     // Document symbols must round-trip the client's strict DocumentSymbol
     // validation: every position a real uinteger column, never a sentinel.
-    const symbols = (await client.request("textDocument/documentSymbol", {
-      textDocument: { uri },
-    })) as Array<{
-      name: string;
-      range: { start: { character: number }; end: { line: number; character: number } };
-      selectionRange: unknown;
-      children: unknown[];
-    }>;
+    const symbols = (await client.request("textDocument/documentSymbol", { textDocument: { uri } })) as
+      Array<{ name: string; range: { end: { character: number } }; selectionRange: unknown; children: unknown[] }>;
     assert.equal(symbols.length, 1);
     assert.equal(symbols[0].name, "app/");
     assert.equal(symbols[0].children.length, 1);
-    const flat = [symbols[0], ...(symbols[0].children as typeof symbols)];
-    for (const sym of flat) {
+    for (const sym of [symbols[0], ...(symbols[0].children as typeof symbols)]) {
       assert.ok(sym.selectionRange, "selectionRange present");
       assert.ok(
         sym.range.end.character <= 2147483647 && Number.isInteger(sym.range.end.character),
@@ -165,15 +142,13 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
     }
 
     // Folding ranges are what give the editor its folder-collapse arrows.
-    const folds = (await client.request("textDocument/foldingRange", {
-      textDocument: { uri },
-    })) as Array<{ startLine: number; endLine: number }>;
+    const folds = (await client.request("textDocument/foldingRange", { textDocument: { uri } })) as
+      Array<{ startLine: number; endLine: number }>;
     assert.equal(folds.length, 1);
     assert.equal(folds[0].startLine, 0); // app/ folds over its child
 
     const edits = (await client.request("textDocument/formatting", {
-      textDocument: { uri },
-      options: { tabSize: 2, insertSpaces: true },
+      textDocument: { uri }, options: { tabSize: 2, insertSpaces: true },
     })) as Array<{ newText: string }>;
     assert.equal(edits.length, 1); // trailing blank collapses, error line kept
     assert.match(edits[0].newText, /app\//);
@@ -182,22 +157,13 @@ test("initialize, diagnostics (with emoji offsets), completion, formatting", asy
     const uri2 = "file:///fix.dft";
     const diags2Promise = client.waitFor("textDocument/publishDiagnostics");
     client.notify("textDocument/didOpen", {
-      textDocument: {
-        uri: uri2,
-        languageId: "drafteine",
-        version: 1,
-        text: "app/\n  a/\n   odd.txt\n",
-      },
+      textDocument: { uri: uri2, languageId: "drafteine", version: 1, text: "app/\n  a/\n   odd.txt\n" },
     });
-    const diags2 = (await diags2Promise) as {
-      diagnostics: Array<{ range: unknown; message: string }>;
-    };
+    const diags2 = (await diags2Promise) as { diagnostics: Array<{ range: unknown; message: string }> };
     const indentDiag = diags2.diagnostics.find((d) => /multiple of/.test(d.message));
     assert.ok(indentDiag, "indentation warning present");
     const actions = (await client.request("textDocument/codeAction", {
-      textDocument: { uri: uri2 },
-      range: indentDiag!.range,
-      context: { diagnostics: [indentDiag] },
+      textDocument: { uri: uri2 }, range: indentDiag!.range, context: { diagnostics: [indentDiag] },
     })) as Array<{ title: string; edit: { changes: Record<string, Array<{ newText: string }>> } }>;
     assert.equal(actions[0]?.title, "Fix indentation");
     assert.equal(actions[0].edit.changes[uri2][0].newText, "  ");
@@ -215,16 +181,12 @@ test("config language: validated as config, never parsed as a draft", async () =
     client.notify("initialized", {});
     const uri = "file:///drafteine.config.json";
     const diagsPromise = client.waitFor("textDocument/publishDiagnostics");
+    const text = JSON.stringify({
+      contract: ["typo.dft"],
+      profiles: [{ name: "pkg", expands: { allow: ["dist/"] } }],
+    });
     client.notify("textDocument/didOpen", {
-      textDocument: {
-        uri,
-        languageId: "drafteine-config",
-        version: 1,
-        text: JSON.stringify({
-          contract: ["typo.dft"],
-          profiles: [{ name: "pkg", expands: { allow: ["dist/"] } }],
-        }),
-      },
+      textDocument: { uri, languageId: "drafteine-config", version: 1, text },
     });
     const diags = (await diagsPromise) as { diagnostics: Array<{ message: string }> };
     const messages = diags.diagnostics.map((d) => d.message);
@@ -238,17 +200,14 @@ test("config language: validated as config, never parsed as a draft", async () =
 
     // Formatting pretty-prints config JSON with key order preserved.
     const edits = (await client.request("textDocument/formatting", {
-      textDocument: { uri },
-      options: { tabSize: 2, insertSpaces: true },
+      textDocument: { uri }, options: { tabSize: 2, insertSpaces: true },
     })) as Array<{ newText: string }>;
     assert.equal(edits.length, 1);
     assert.match(edits[0].newText, /^\{\n  "contract"/);
     assert.ok(edits[0].newText.endsWith("\n"));
 
     // Brace folding works for the config document.
-    const folds = (await client.request("textDocument/foldingRange", {
-      textDocument: { uri: uri },
-    })) as unknown[];
+    const folds = (await client.request("textDocument/foldingRange", { textDocument: { uri } })) as unknown[];
     assert.equal(Array.isArray(folds), true);
     await client.request("shutdown", {});
   } finally {
@@ -258,22 +217,18 @@ test("config language: validated as config, never parsed as a draft", async () =
 
 test("declared vocabulary from drafteine.config.json completes and documents", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "drafteine-lsp-"));
-  fs.writeFileSync(
-    path.join(dir, "drafteine.config.json"),
-    JSON.stringify({
-      annotations: [
-        { name: "owner", value: "string", doc: "Team that owns this entry." },
-        { name: "generated", value: "flag", appliesTo: "file" },
-      ],
-    })
-  );
+  const vocab = JSON.stringify({
+    annotations: [
+      { name: "owner", value: "string", doc: "Team that owns this entry." },
+      { name: "generated", value: "flag", appliesTo: "file" },
+    ],
+  });
+  fs.writeFileSync(path.join(dir, "drafteine.config.json"), vocab);
   const client = new LspClient();
   try {
     await client.request("initialize", {
-      processId: null,
-      rootUri: null,
+      processId: null, rootUri: null, capabilities: {},
       workspaceFolders: [{ uri: pathToFileURL(dir).href, name: "tmp" }],
-      capabilities: {},
     });
     client.notify("initialized", {});
     const uri = "file:///vocab.dft";
@@ -281,13 +236,55 @@ test("declared vocabulary from drafteine.config.json completes and documents", a
       textDocument: { uri, languageId: "drafteine", version: 1, text: "main.ts { }\n" },
     });
     const completions = (await client.request("textDocument/completion", {
-      textDocument: { uri },
-      position: { line: 0, character: 10 },
+      textDocument: { uri }, position: { line: 0, character: 10 },
     })) as Array<{ label: string; documentation?: { value: string } }>;
     const owner = completions.find((c) => c.label === "owner");
     assert.ok(owner, "custom owner completion missing");
     assert.match(owner.documentation?.value ?? "", /Team that owns this entry/);
     assert.ok(completions.some((c) => c.label === "generated"));
+    await client.request("shutdown", {});
+  } finally {
+    client.kill();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("name position completes real filesystem entries via the contract root", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "drafteine-lsp-"));
+  for (const sub of ["docs", "node_modules", "src"]) fs.mkdirSync(path.join(dir, sub));
+  fs.writeFileSync(path.join(dir, "main.ts"), "");
+  fs.writeFileSync(path.join(dir, "src", "util.ts"), "");
+  // The draft lives in a subfolder, so only the contract root can explain
+  // completions naming the workspace root's entries.
+  fs.writeFileSync(
+    path.join(dir, "drafteine.config.json"),
+    JSON.stringify({ contracts: [{ draft: "drafts/structure.dft", root: "." }] })
+  );
+  const client = new LspClient();
+  try {
+    await client.request("initialize", {
+      processId: null, rootUri: null, capabilities: {},
+      workspaceFolders: [{ uri: pathToFileURL(dir).href, name: "tmp" }],
+    });
+    client.notify("initialized", {});
+    const uri = pathToFileURL(path.join(dir, "drafts", "structure.dft")).href;
+    client.notify("textDocument/didOpen", {
+      textDocument: { uri, languageId: "drafteine", version: 1, text: "src/\n  ut\nm\n" },
+    });
+    // Name position at the root level (typing "m" on line 2).
+    const top = (await client.request("textDocument/completion", {
+      textDocument: { uri }, position: { line: 2, character: 1 },
+    })) as Array<{ label: string }>;
+    const labels = top.map((c) => c.label);
+    assert.ok(labels.includes("main.ts"), "real file offered");
+    assert.ok(labels.includes("docs/"), "folder offered with a trailing slash");
+    assert.ok(!labels.includes("src/"), "declared sibling skipped");
+    assert.ok(!labels.some((l) => l.includes("node_modules")), "node_modules never offered");
+    // Nested position resolves through the declared ancestor chain.
+    const nested = (await client.request("textDocument/completion", {
+      textDocument: { uri }, position: { line: 1, character: 4 },
+    })) as Array<{ label: string }>;
+    assert.ok(nested.some((c) => c.label === "util.ts"), "src contents offered under src/");
     await client.request("shutdown", {});
   } finally {
     client.kill();

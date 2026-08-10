@@ -2,21 +2,28 @@
  * Materialization: a parse tree becomes an ordered operation list.
  */
 import type { PlanOp, TreeNode } from "./types.js";
+import { globMatcher } from "./names.js";
 
 /**
  * Turn a parse tree into a materialization plan: an ordered list of
  * filesystem operations. Nodes with errors on their line are skipped, so
- * the plan only ever contains what parsed clean.
+ * the plan only ever contains what parsed clean. Forbidden entries and
+ * entries matching an ancestor ban are never created.
  */
 export function plan(root: TreeNode): PlanOp[] {
   const ops: PlanOp[] = [];
-  walk(root, "");
+  walk(root, "", []);
   return ops;
 
-  function walk(node: TreeNode, prefix: string): void {
+  function walk(
+    node: TreeNode,
+    prefix: string,
+    bans: Array<(name: string, isDir: boolean) => boolean>
+  ): void {
     for (const child of node.children) {
       if (child.line!.errors.some((e) => e.severity === "error")) continue;
       if (child.annotations.some((a) => a.key === "forbidden")) continue;
+      if (bans.some((m) => m(child.name, child.isFolder))) continue;
       const path = prefix + child.name + (child.isFolder ? "/" : "");
       const template = child.annotations.find((a) => a.key === "template");
       ops.push({
@@ -24,7 +31,10 @@ export function plan(root: TreeNode): PlanOp[] {
         path,
         template: template?.value ?? null,
       });
-      if (child.isFolder) walk(child, prefix + child.name + "/");
+      if (child.isFolder) {
+        const own = (child.annotations.find((a) => a.key === "ban")?.values ?? []).map(globMatcher);
+        walk(child, prefix + child.name + "/", bans.concat(own));
+      }
     }
   }
 }

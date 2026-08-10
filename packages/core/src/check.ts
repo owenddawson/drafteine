@@ -2,6 +2,13 @@
  * Check: verify that reality conforms to a parsed draft.
  */
 import type { CheckIO, TreeNode, Violation } from "./types.js";
+import { globMatcher } from "./names.js";
+
+interface Ban {
+  pattern: string;
+  origin: string;
+  match: (name: string, isDir: boolean) => boolean;
+}
 
 /**
  * Verify that reality (as seen through `io`) conforms to a parsed draft.
@@ -9,11 +16,13 @@ import type { CheckIO, TreeNode, Violation } from "./types.js";
  * extras are fine. A trailing `?` (or the `optional` flag) exempts absence
  * but a present entry must still conform. `strict` makes a folder's
  * undeclared direct children violations. `max-lines: n` bounds a file.
+ * `ban: [patterns]` on a folder bans matching basenames through its whole
+ * real subtree, accumulates downward, and beats declarations.
  * Error lines never reach enforcement.
  */
 export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
   const violations: Violation[] = [];
-  walk(root, "");
+  walk(root, "", []);
   return violations;
 
   function has(node: TreeNode, key: string): boolean {
@@ -39,19 +48,64 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
     const mult = { "": 1, k: 1000, m: 1000000 }[m[2].toLowerCase() as "" | "k" | "m"];
     return Math.round(Number(m[1]) * mult);
   }
-  /** allow glob: * and ? on immediate child names, trailing / = dirs only. */
-  function allowMatcher(pat: string): (name: string, isDir: boolean) => boolean {
-    const dirOnly = pat.endsWith("/");
-    const core = dirOnly ? pat.slice(0, -1) : pat;
-    const rx = new RegExp(
-      "^" +
-        core
-          .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-          .replace(/\*/g, "[^/]*")
-          .replace(/\?/g, "[^/]") +
-        "$"
-    );
-    return (name, isDir) => (!dirOnly || isDir) && rx.test(name);
+  /** Validated ban patterns declared on this folder, as matchers. */
+  function bansOf(node: TreeNode, p: string): Ban[] {
+    const attr = node.annotations.find((a) => a.key === "ban");
+    if (!attr) return [];
+    const out: Ban[] = [];
+    for (const pattern of attr.values) {
+      const core = pattern.endsWith("/") ? pattern.slice(0, -1) : pattern;
+      if (core === "" || core === "." || core === ".." || core.includes("/") || pattern.includes("**")) {
+        violations.push({
+          path: p,
+          kind: "bad-annotation",
+          message: `${p}: ban pattern “${pattern}” is not a single-name glob`,
+          node,
+        });
+        continue;
+      }
+      out.push({ pattern, origin: p, match: globMatcher(pattern) });
+    }
+    return out;
+  }
+
+  /** Scan the real subtree under `p` for entries matching this folder's
+   *  own bans. Symlinks are never followed, and a trailing-slash pattern
+   *  never matches a symlinked directory. An unreadable directory fails
+   *  the check rather than passing it. */
+  function scanBans(node: TreeNode, p: string, bans: Ban[]): void {
+    let entries: Array<{ name: string; kind: "file" | "dir" | "link" }>;
+    try {
+      entries = io.entries
+        ? io.entries(p)
+        : io.readdir(p).map((name) => ({
+            name,
+            kind: io.kind(`${p}/${name}`) === "dir" ? ("dir" as const) : ("file" as const),
+          }));
+    } catch {
+      violations.push({
+        path: p,
+        kind: "banned",
+        message: `${p}: unreadable while enforcing ban, check incomplete`,
+        node,
+      });
+      return;
+    }
+    for (const e of entries) {
+      const entryPath = `${p}/${e.name}`;
+      const isDir = e.kind === "dir";
+      const hit = bans.find((b) => b.match(e.name, isDir));
+      if (hit) {
+        violations.push({
+          path: entryPath,
+          kind: "banned",
+          message: `${entryPath}: matches ban: ${hit.pattern} (from ${hit.origin}/)`,
+          node,
+        });
+        continue; // reporting the banned entry itself is enough
+      }
+      if (isDir) scanBans(node, entryPath, bans);
+    }
   }
   /** Metric checks for one file path, resolving defaults from `anchor`. */
   function checkFileMetrics(anchor: TreeNode, p: string): void {
@@ -101,7 +155,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
     }
   }
 
-  function walk(node: TreeNode, prefix: string): void {
+  function walk(node: TreeNode, prefix: string, bans: Ban[]): void {
     for (const child of node.children) {
       if (child.line!.errors.some((e) => e.severity === "error")) continue;
       const p = prefix + child.name;
@@ -118,7 +172,32 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
         continue;
       }
 
+      // Bans beat declarations. A required entry matching an inherited
+      // ban makes the draft unsatisfiable; an optional one may only be
+      // absent.
+      const banHit = bans.find((b) => b.match(child.name, child.isFolder));
+      if (banHit) {
+        if (!has(child, "optional")) {
+          violations.push({
+            path: p,
+            kind: "banned",
+            message: `${p}: required entry matches ban: ${banHit.pattern} (from ${banHit.origin}/), the draft cannot be satisfied`,
+            node: child,
+          });
+        } else if (io.kind(p) !== "missing") {
+          violations.push({
+            path: p,
+            kind: "banned",
+            message: `${p}: optional entry is present but matches ban: ${banHit.pattern} (from ${banHit.origin}/)`,
+            node: child,
+          });
+        }
+        continue;
+      }
+
+      const ownBans = child.isFolder ? bansOf(child, p) : [];
       const kind = io.kind(p);
+      if (ownBans.length > 0 && kind === "dir") scanBans(child, p, ownBans);
 
       if (kind === "missing") {
         if (!has(child, "optional")) {
@@ -178,14 +257,17 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
         }
       }
 
+      const childBans = bans.concat(ownBans);
       if (has(child, "strict")) {
         const declared = new Set(child.children.map((x) => x.name));
         const allow = child.annotations.find((a) => a.key === "allow");
-        const matchers = (allow?.values ?? []).map(allowMatcher);
+        const matchers = (allow?.values ?? []).map(globMatcher);
         for (const entry of io.readdir(p)) {
           if (declared.has(entry)) continue;
           const entryPath = `${p}/${entry}`;
           const isDir = io.kind(entryPath) === "dir";
+          // Banned extras are already reported by the ban scan.
+          if (childBans.some((b) => b.match(entry, isDir))) continue;
           if (matchers.some((m) => m(entry, isDir))) {
             // Tolerated extras still honor the folder's metric defaults.
             if (!isDir) checkFileMetrics(child, entryPath);
@@ -200,7 +282,7 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
           });
         }
       }
-      walk(child, p + "/");
+      walk(child, p + "/", childBans);
     }
   }
 }

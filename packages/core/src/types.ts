@@ -113,6 +113,9 @@ export interface CheckIO {
   countLines(path: string): number;
   /** Size in bytes of the file at this draft-relative path. */
   fileSize(path: string): number;
+  /** Entries with their on-disk kind, symlinks reported as "link" and
+   *  never followed. Optional: ban scanning falls back to readdir+kind. */
+  entries?(path: string): Array<{ name: string; kind: "file" | "dir" | "link" }>;
 }
 
 export interface Violation {
@@ -126,6 +129,7 @@ export interface Violation {
     | "max-lines"
     | "max-size"
     | "forbidden"
+    | "banned"
     | "count"
     | "bad-annotation";
   /** The declaring node. For strict extras this is the strict folder itself. */

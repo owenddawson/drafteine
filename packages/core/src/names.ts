@@ -13,6 +13,22 @@ export const QUOTED_NAME_RE = /^"((?:[^"\\]|\\.)*)"/;
 
 export const unescape = (s: string): string => s.replace(/\\(.)/g, "$1");
 
+/** Name glob shared by allow and ban: * and ? match within a single
+ *  name, never across /. A trailing slash matches directories only. */
+export function globMatcher(pat: string): (name: string, isDir: boolean) => boolean {
+  const dirOnly = pat.endsWith("/");
+  const core = dirOnly ? pat.slice(0, -1) : pat;
+  const rx = new RegExp(
+    "^" +
+      core
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\?/g, "[^/]") +
+      "$"
+  );
+  return (name, isDir) => (!dirOnly || isDir) && rx.test(name);
+}
+
 /** Why a name or path segment is invalid, or null when it is fine. */
 export function nameComplaint(segment: string, isFolder: boolean): string | null {
   if (segment === "") {

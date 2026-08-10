@@ -5,7 +5,8 @@
  * One implementation serves every LSP client (VS Code, JetBrains, Neovim,
  * Helix, Zed …): push diagnostics from the parser, whole-document
  * formatting via the canonical formatter, attribute completions inside
- * `{ }` containers, and hover docs from the attribute vocabulary.
+ * `{ }` containers, filesystem aware name completions in name position,
+ * and hover docs from the attribute vocabulary.
  */
 import {
   createConnection,
@@ -33,6 +34,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, format, type ParseResult, type TreeNode } from "@drafteine/core";
 import { ANNOTATIONS, hoverDoc, type AnnotationDoc } from "./annotations.js";
+import { nameCompletions } from "./completions.js";
 import { CONFIG_KEY_DOCS, configFoldingRanges, formatConfig, isConfigDoc, validateConfig } from "./configcheck.js";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -118,7 +120,7 @@ connection.onInitialize((params): InitializeResult => {
   return {
   capabilities: {
     textDocumentSync: TextDocumentSyncKind.Incremental,
-    completionProvider: { triggerCharacters: ["{", ","] },
+    completionProvider: { triggerCharacters: ["{", ",", "/"] },
     hoverProvider: true,
     documentFormattingProvider: true,
     documentSymbolProvider: true,
@@ -177,10 +179,13 @@ connection.onCompletion((params): CompletionItem[] => {
   });
 
   // Attribute completions apply inside a container: after an unclosed `{`
-  // on this line, or on an item line of an expanded container.
+  // on this line, or on an item line of an expanded container. In name
+  // position the real filesystem completes instead.
   const inContainer =
     before.lastIndexOf("{") > before.lastIndexOf("}") || line?.kind === "annotation";
-  if (!inContainer) return [];
+  if (!inContainer) {
+    return nameCompletions(doc.uri, before, result, params.position.line, workspaceRoots);
+  }
 
   // After `preset:`, offer the presets defined in this draft.
   if (/preset\s*:\s*[\w-]*$/.test(before)) {

@@ -21,10 +21,12 @@ packages/ { owner: core, strict, count: 6 } # one folder per published package
       vocabulary.ts # declared custom attribute validation
       accept.ts { since: 0.12.2 } # snapshot-style drift reconciliation
       check.ts # reality must conform to the draft
+      explain.ts { since: 0.15.0 } # effective policy for one path, with sources
       profiles.ts { since: 0.6.0 } # preset expansion onto entries
       format.ts # canonical formatter plus aligned house style
     test/ { strict, max-lines: 650 }
       parser.test.ts
+      ban.test.ts { since: 0.15.0 } # subtree pattern bans
     package.json
     tsconfig.json
     tsconfig.build.json
@@ -35,6 +37,9 @@ packages/ { owner: core, strict, count: 6 } # one folder per published package
       drafteine.ts # verb dispatch, grows with each verb
       diff.ts # unified diff for the check modes
       gitignore.ts # snapshot's gitignore matcher
+      snapshot.ts { since: 0.15.0 } # real directory to draft lines
+      codeowners.ts { since: 0.15.0 } # ownership attributes to CODEOWNERS text
+      reports.ts { since: 0.15.0 } # markdown, SARIF, and explain renderings
       config.ts # vocabulary, templates, contracts
       scaffold.ts # init onboarding and owner queries
     test/ { strict, max-lines: 500 }
@@ -47,6 +52,7 @@ packages/ { owner: core, strict, count: 6 } # one folder per published package
   language-server/ { strict, preset: pkg } # LSP for every editor
     src/ { strict, max-lines: 450 }
       server.ts # diagnostics, completion, hover, symbols, folding
+      completions.ts # filesystem aware name completion for entry lines
       configcheck.ts # validation for the config language
       annotations.ts { max-lines: 250 } # the built-in vocabulary and docs
     test/ { strict, max-lines: 300 }
@@ -100,6 +106,7 @@ scratch/ { forbidden } # experiments belong outside the repo
     bug_report.yml
     feature_request.yml
   PULL_REQUEST_TEMPLATE.md # the five-gate checklist
+action.yml # the reusable GitHub Action: drafteine check --all on PRs
 package.json
 LICENSE
 CONTRIBUTING.md

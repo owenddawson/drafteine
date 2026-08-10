@@ -28,8 +28,22 @@ pragma in generated drafts.
 contracts, templates directory, custom attribute vocabulary. The
 `profiles` key is retired with a migration diagnostic.
 
+**Language: subtree bans.** `ban: [patterns]` on a folder bans matching
+basenames through its whole real subtree. Bans accumulate downward and
+beat declarations, `apply` never creates a banned path, symlinks are
+never followed, and an unreadable directory fails the check instead of
+passing it.
+
+**CLI.** New `explain <path>` verb: the effective policy for one path
+with the draft line that contributed each rule. `check --format
+markdown` renders a drift report for PR comments and `--format sarif`
+feeds GitHub code scanning, both locating violations at the declaring
+draft line. A reusable GitHub Action (`action.yml`) runs `check --all`
+on pull requests.
+
 **Tooling.** Parser, formatter, LSP (container-aware completions, preset
-name completion after `preset:`), TextMate grammar, playground, and the
+name completion after `preset:`, filesystem-aware name and path
+completion in entry position), TextMate grammar, playground, and the
 extension's contract watcher all speak the new surface. Violation
 messages restyle without `@` signs.
 

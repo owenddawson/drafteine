@@ -24,10 +24,13 @@ import { unifiedDiff } from "./diff.js";
 import { loadConfig } from "./config.js";
 import { resolveOwner, runInit } from "./scaffold.js";
 import { gitignoreMatcher } from "./gitignore.js";
+import { snapshotWalk } from "./snapshot.js";
+import { buildCodeowners } from "./codeowners.js";
+import { renderExplain, renderMarkdown, renderSarif, type ContractReport } from "./reports.js";
 import {
   parse,
   format,
-  quoteName,
+  explain,
   runCheck,
   runApply,
   acceptViolations,
@@ -48,7 +51,7 @@ const red = (s: string) => c(31, s);
 const dim = (s: string) => c(2, s);
 const green = (s: string) => c(32, s);
 
-const COMMANDS = ["plan", "apply", "tree", "check", "snapshot", "fmt", "codeowners", "docs", "accept", "init", "owner"] as const;
+const COMMANDS = ["plan", "apply", "tree", "check", "snapshot", "fmt", "codeowners", "docs", "accept", "init", "owner", "explain"] as const;
 type Command = (typeof COMMANDS)[number];
 
 function usage(code = 2): never {
@@ -60,6 +63,8 @@ function usage(code = 2): never {
       `       drafteine snapshot [dir] [--all]\n` +
       `       drafteine init [--root DIR] [--agents]   scaffold contract, config, agent rules\n` +
       `       drafteine owner <path> [--root DIR]      who owns this path per the contract\n` +
+      `       drafteine explain <path> [--root DIR]    effective policy for one path, with sources\n` +
+      `       drafteine check [--format text|json|markdown|sarif]\n` +
       `       cat file.dft | drafteine plan`
   );
   process.exit(code);
@@ -68,6 +73,12 @@ function usage(code = 2): never {
 function fail(msg: string): never {
   console.error(red("error: ") + msg);
   process.exit(2);
+}
+
+function cliVersion(): string {
+  return JSON.parse(
+    fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")
+  ).version;
 }
 
 const [, , commandArg, ...rest] = process.argv;
@@ -95,6 +106,7 @@ const args = {
   align: false,
   prune: false,
   agents: false,
+  formatOut: "text" as "text" | "json" | "markdown" | "sarif",
 };
 for (let i = 0; i < rest.length; i++) {
   const a = rest[i];
@@ -102,6 +114,12 @@ for (let i = 0; i < rest.length; i++) {
   else if (a === "--dry-run") args.dryRun = true;
   else if (a === "--all") args.all = true;
   else if (a === "--json") args.json = true;
+  else if (a === "--format") {
+    const v = rest[++i] ?? fail("--format needs a value");
+    if (!["text", "json", "markdown", "sarif"].includes(v)) fail(`unknown format ${v}`);
+    args.formatOut = v as typeof args.formatOut;
+    if (v === "json") args.json = true;
+  }
   else if (a === "--align") args.align = true;
   else if (a === "--gitignore") args.gitignore = true;
   else if (a === "--prune") args.prune = true;
@@ -122,7 +140,7 @@ if (command === "init") {
   process.exit(0);
 }
 
-if (command === "owner") {
+if (command === "owner" || command === "explain") {
   if (!args.file) usage();
   const draft = path.join(path.resolve(args.root), "structure.dft");
   let src: string;
@@ -130,6 +148,11 @@ if (command === "owner") {
     src = fs.readFileSync(draft, "utf8");
   } catch {
     fail(`cannot read ${draft}`);
+  }
+  if (command === "explain") {
+    const x = explain(parse(src), args.file);
+    console.log(renderExplain(x, args.file, path.basename(draft)));
+    process.exit(x.declared || x.rules.length > 0 ? 0 : 1);
   }
   const owner = resolveOwner(src, args.file);
   if (owner === null) {
@@ -142,12 +165,6 @@ if (command === "owner") {
 
 /* ---------------- snapshot: real directory → .dft --------------------- */
 
-const SNAPSHOT_IGNORE = new Set([".git", "node_modules"]);
-let snapshotIgnore: ((relPath: string, isDir: boolean) => boolean) | null = null;
-/** Names no draft can express even quoted: forbidden portability chars,
- *  control chars, and the dot names. Everything else quotes cleanly. */
-const UNREPRESENTABLE_NAME = /[\\:*?"<>|\x00-\x1f]|^\.{1,2}$/;
-
 if (command === "snapshot") {
   const dir = path.resolve(args.file ?? ".");
   let stat;
@@ -157,48 +174,19 @@ if (command === "snapshot") {
     fail(`cannot read directory ${dir}`);
   }
   if (!stat.isDirectory()) fail(`${dir} is not a directory`);
+  let ignore: ((relPath: string, isDir: boolean) => boolean) | null = null;
   if (args.gitignore) {
     try {
-      snapshotIgnore = gitignoreMatcher(fs.readFileSync(path.join(dir, ".gitignore"), "utf8"));
+      ignore = gitignoreMatcher(fs.readFileSync(path.join(dir, ".gitignore"), "utf8"));
     } catch {
-      snapshotIgnore = null; // no .gitignore present is fine
+      ignore = null; // no .gitignore present is fine
     }
   }
   const lines: string[] = [];
-  snapshotWalk(dir, 0, lines, "");
+  snapshotWalk(dir, 0, lines, "", { all: args.all, ignore });
   if (lines.length === 0) console.error(dim("# (empty directory)"));
   else console.log(["drafteine 1", ""].concat(lines).join("\n"));
   process.exit(0);
-}
-
-function snapshotWalk(dir: string, depth: number, out: string[], rel: string): void {
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return; // unreadable directory: skip silently rather than abort the draft
-  }
-  const visible = entries.filter((e) => args.all || !SNAPSHOT_IGNORE.has(e.name));
-  // Folders first, each group in codepoint order, deterministic across locales.
-  visible.sort((a, b) =>
-    a.isDirectory() === b.isDirectory()
-      ? a.name < b.name ? -1 : a.name > b.name ? 1 : 0
-      : a.isDirectory() ? -1 : 1
-  );
-  for (const e of visible) {
-    const isDir = e.isDirectory(); // symlinked dirs report false: treated as files, no loops
-    const childRel = rel === "" ? e.name : `${rel}/${e.name}`;
-    if (snapshotIgnore && snapshotIgnore(childRel, isDir)) continue;
-    if (UNREPRESENTABLE_NAME.test(e.name)) {
-      out.push(
-        "  ".repeat(depth) +
-          `# skipped (unrepresentable name): ${e.name.replace(/[\r\n]/g, " ")}`
-      );
-      continue;
-    }
-    out.push("  ".repeat(depth) + quoteName(e.name) + (isDir ? "/" : ""));
-    if (isDir) snapshotWalk(path.join(dir, e.name), depth + 1, out, childRel);
-  }
 }
 
 /* ---------------- check --all: every contract in the config ----------- */
@@ -220,6 +208,11 @@ function makeCheckIO(base: string): CheckIO {
     readdir: (p) => fs.readdirSync(safe(p)),
     countLines: (p) => fs.readFileSync(safe(p), "utf8").split("\n").length,
     fileSize: (p) => fs.statSync(safe(p)).size,
+    entries: (p) =>
+      fs.readdirSync(safe(p), { withFileTypes: true }).map((e) => ({
+        name: e.name,
+        kind: e.isSymbolicLink() ? ("link" as const) : e.isDirectory() ? ("dir" as const) : ("file" as const),
+      })),
   };
 }
 
@@ -246,6 +239,24 @@ if (command === "check" && !args.file && (args.all || process.stdin.isTTY)) {
   const conforms = (r: (typeof reports)[number]): boolean =>
     r.readable && r.draftErrors === 0 && r.violations.length === 0;
   const ok = reports.filter(conforms).length;
+
+  if (args.formatOut === "markdown" || args.formatOut === "sarif") {
+    const shaped: ContractReport[] = reports.map((r) => ({
+      draft: r.draft,
+      readable: r.readable,
+      draftErrors: r.draftErrors,
+      violations: r.violations.map((v) => ({
+        path: v.path,
+        kind: v.kind,
+        message: v.message,
+        line: v.node.line!.lineNo + 1,
+      })),
+    }));
+    console.log(
+      args.formatOut === "markdown" ? renderMarkdown(shaped) : renderSarif(shaped, cliVersion())
+    );
+    process.exit(ok === reports.length ? 0 : 1);
+  }
 
   if (args.json) {
     console.log(
@@ -340,30 +351,7 @@ if (
 /* ---------------- codeowners: emit ownership from owner --------------- */
 
 if (command === "codeowners") {
-  const lines: string[] = [
-    `# Generated by drafteine from ${displayName}. Edit the draft, not this file.`,
-  ];
-  const walk = (node: TreeNode, prefix: string): void => {
-    for (const child of node.children) {
-      if (child.line!.errors.some((e) => e.severity === "error")) continue;
-      const p = prefix + child.name;
-      const owner = child.annotations.find((a) => a.key === "owner");
-      if (owner && owner.value) {
-        const owners = owner.value
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((t) => (t.includes("@") ? t : "@" + t))
-          .join(" ");
-        // Parents emit before children. CODEOWNERS applies the last
-        // matching rule, so deeper entries override their ancestors.
-        const pattern = "/" + p.replace(/ /g, "\\ ") + (child.isFolder ? "/" : "");
-        lines.push(`${pattern} ${owners}`);
-      }
-      if (child.isFolder) walk(child, p + "/");
-    }
-  };
-  walk(result.root, "");
-  const output = lines.join("\n") + "\n";
+  const output = buildCodeowners(result.root, displayName);
   const outPath = args.out ?? "CODEOWNERS";
   if (args.checkFmt) {
     let existing = "";
@@ -507,6 +495,26 @@ if (command === "accept") {
 
 if (command === "check") {
   const violations = runCheck(result.root, makeCheckIO(rootDir));
+
+  if (args.formatOut === "markdown" || args.formatOut === "sarif") {
+    const shaped: ContractReport[] = [
+      {
+        draft: displayName,
+        readable: true,
+        draftErrors: errors,
+        violations: violations.map((v) => ({
+          path: v.path,
+          kind: v.kind,
+          message: v.message,
+          line: v.node.line!.lineNo + 1,
+        })),
+      },
+    ];
+    console.log(
+      args.formatOut === "markdown" ? renderMarkdown(shaped) : renderSarif(shaped, cliVersion())
+    );
+    process.exit(violations.length === 0 && errors === 0 ? 0 : 1);
+  }
 
   if (args.json) {
     console.log(

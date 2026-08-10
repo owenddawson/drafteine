@@ -1,0 +1,20 @@
+name: "Drafteine Check"
+description: "Enforce the repository's file-structure contracts: drafteine check --all fails the build on drift."
+branding:
+  icon: "check-square"
+  color: "orange"
+inputs:
+  version:
+    description: "The @drafteine/cli version to run."
+    required: false
+    default: "latest"
+  root:
+    description: "Directory containing drafteine.config.json."
+    required: false
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - name: drafteine check --all
+      shell: bash
+      run: npx --yes --package "@drafteine/cli@${{ inputs.version }}" drafteine check --all --root "${{ inputs.root }}"

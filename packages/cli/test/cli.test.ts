@@ -408,3 +408,63 @@ test("tree renders ASCII branches", () => {
   assert.match(out, /│ {2}└─ main\.js|│ {2}├─ main\.js| {3}└─ main\.js/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("explain resolves effective policy with sources", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "drafteine-"));
+  fs.writeFileSync(
+    path.join(dir, "structure.dft"),
+    "packages/ { owner: core, strict }\n  core/ { max-lines: 500 }\n    parser.ts\n"
+  );
+  const declared = run(["explain", "packages/core/parser.ts", "--root", dir]);
+  assert.match(declared, /is declared \(structure\.dft:3\)/);
+  assert.match(declared, /max-lines: 500 {2}from packages\/core\/ \(structure\.dft:2\)/);
+  assert.match(declared, /inherited folder default/);
+  assert.match(declared, /owner: core {2}from packages\/ \(structure\.dft:1\)/);
+
+  const undeclared = run(["explain", "packages/rogue.ts", "--root", dir]);
+  assert.match(undeclared, /not declared/);
+  assert.match(undeclared, /parent is strict, this undeclared path would violate/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("check --format markdown and sarif point at draft lines", () => {
+  const { dir, file } = tmpSetup("app/\n  missing.ts\n");
+  fs.mkdirSync(path.join(dir, "app"));
+  let md = "";
+  try {
+    run(["check", file, "--root", dir, "--format", "markdown"]);
+    assert.fail("expected exit 1");
+  } catch (e: any) {
+    md = e.stdout;
+  }
+  assert.match(md, /### ✗/);
+  assert.match(md, /missing\.ts: drafted but missing from disk \(`.*:2`\)/);
+  assert.match(md, /0\/1 contract conform/);
+
+  let sarifRaw = "";
+  try {
+    run(["check", file, "--root", dir, "--format", "sarif"]);
+    assert.fail("expected exit 1");
+  } catch (e: any) {
+    sarifRaw = e.stdout;
+  }
+  const sarif = JSON.parse(sarifRaw);
+  assert.equal(sarif.version, "2.1.0");
+  assert.equal(sarif.runs[0].results[0].ruleId, "missing");
+  assert.equal(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine, 2);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("ban violations surface through the CLI", () => {
+  const { dir, file } = tmpSetup("v/ { ban: [*.bak] }\n");
+  fs.mkdirSync(path.join(dir, "v/deep"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "v/deep/junk.bak"), "");
+  try {
+    run(["check", file, "--root", dir]);
+    assert.fail("expected exit 1");
+  } catch (e: any) {
+    assert.equal(e.status, 1);
+    assert.match(e.stdout, /v\/deep\/junk\.bak: matches ban: \*\.bak \(from v\/\)/);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+});

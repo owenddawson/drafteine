@@ -128,6 +128,21 @@ export const ANNOTATIONS: Record<string, AnnotationDoc> = {
     ].join("\n"),
     appliesTo: "both",
   },
+  ban: {
+    snippet: "ban: [$1]",
+    doc: [
+      "**ban: [patterns]**",
+      "",
+      "Bans matching basenames through this folder's whole real subtree.",
+      "Same globs as allow. Bans accumulate downward and beat",
+      "declarations. Apply never creates a banned path.",
+      "",
+      "```drafteine",
+      "vendor/ { ban: [*.bak, *.orig, tmp/] }",
+      "```",
+    ].join("\n"),
+    appliesTo: "folder",
+  },
   count: {
     snippet: "count: $1",
     doc: [

@@ -125,14 +125,70 @@ drafteine fmt      structure.dft --write    # canonical formatting
 drafteine codeowners structure.dft --out CODEOWNERS   # ownership from owner:
 drafteine accept   structure.dft            # declare drift into the draft
 drafteine check    --all                    # every contract in the config
+drafteine explain  src/deep/file.ts         # effective policy, with sources
+drafteine check    --all --format markdown  # drift report for a PR comment
+drafteine check    --all --format sarif     # GitHub code scanning ingestion
 ```
 
 `check` enforces contracts: missing drafted entries, type mismatches,
 `strict` folder extras (`allow:` patterns tolerated), `forbidden` paths,
-`count:` budgets, and `max-lines:` / `max-size:` violations, with exit
-code 1 for CI. Folder-level metrics are recursive defaults, a file's own
+`ban: [*.bak]` subtree pattern bans, `count:` budgets, and `max-lines:`
+/ `max-size:` violations, with exit code 1 for CI. Folder-level metrics are recursive defaults, a file's own
 attribute overrides. `codeowners --check` gates CI on the generated file
 being in sync. `-` or piped stdin works everywhere a file does.
+
+## CI enforcement
+
+Structure drift only surfaces where something runs `check`. On GitHub,
+one step does it:
+
+```yaml
+- uses: owenddawson/drafteine@main
+  # inputs: version (@drafteine/cli version), root (config directory)
+```
+
+Anywhere else (Codeberg/Forgejo, GitLab, plain shell), the action is
+just this one line:
+
+```sh
+npx --yes --package @drafteine/cli drafteine check --all
+```
+
+Exit code 1 on violations fails the build. `codeowners --check` and
+`fmt structure.dft --check` slot in beside it for full-contract CI.
+
+## Holding agents to the contract
+
+Drafteine's sharpest use case is the gap between an agent that plans and
+an agent that builds. Prose plans get reinterpreted; a contract gets
+checked.
+
+1. **Plan.** The planning agent proposes `structure.dft` (ask it for
+   "the layout as drafteine"). You review ten lines instead of forty
+   file creations.
+2. **Materialize.** `drafteine apply structure.dft` creates the skeleton
+   and never overwrites.
+3. **Enforce while the agent works.** `drafteine init --agents` writes
+   the ground rules into `AGENTS.md`. For Claude Code, a Stop hook makes
+   the loop mechanical — the agent cannot end its turn while the
+   contract is violated, and the violations feed straight back to it:
+
+   ```json
+   {
+     "hooks": {
+       "Stop": [
+         { "hooks": [{ "type": "command",
+             "command": "npx --yes --package @drafteine/cli drafteine check --all 1>&2 || exit 2" }] }
+       ]
+     }
+   }
+   ```
+
+4. **Backstop in CI.** The action above catches whatever slips through,
+   on every pull request, human or agent.
+
+Structure changes then arrive as reviewable `structure.dft` diffs, and
+`drafteine accept` stays a human decision.
 
 ## The VS Code extension
 
