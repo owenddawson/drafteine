@@ -3,3 +3,4 @@ dist/
 *.vsix
 packages/vscode-extension/media/filecolors.css
 media-design/
+greenfield-designs/
