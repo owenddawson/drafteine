@@ -36,12 +36,26 @@ jobs:
           generate_release_notes: true
       - name: Publish extension to the Marketplace
         if: env.VSCE_PAT != ''
-        run: npx @vscode/vsce publish --no-dependencies -p "$VSCE_PAT"
+        run: |
+          local_version=$(jq -r .version package.json)
+          published=$(npx @vscode/vsce show drafteine.drafteine --json 2>/dev/null | jq -r '.versions[0].version' || echo none)
+          if [ "$published" = "$local_version" ]; then
+            echo "v$local_version is already on the Marketplace, skipping"
+          else
+            npx @vscode/vsce publish --no-dependencies -p "$VSCE_PAT"
+          fi
         working-directory: packages/vscode-extension
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Publish extension to Open VSX
         if: env.OVSX_PAT != ''
-        run: npx ovsx publish out/*.vsix -p "$OVSX_PAT"
+        run: |
+          local_version=$(jq -r .version packages/vscode-extension/package.json)
+          published=$(curl -s https://open-vsx.org/api/drafteine/drafteine | jq -r '.version // "none"')
+          if [ "$published" = "$local_version" ]; then
+            echo "v$local_version is already on Open VSX, skipping"
+          else
+            npx ovsx publish out/*.vsix -p "$OVSX_PAT"
+          fi
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
