@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: # publish the Marketplace extension on demand
 
 permissions:
   contents: write
@@ -29,6 +30,13 @@ jobs:
           npx @vscode/vsce package --no-dependencies --out ../../out/
         working-directory: packages/vscode-extension
       - uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
         with:
           files: out/*
           generate_release_notes: true
+      - name: Publish extension to the Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx @vscode/vsce publish --no-dependencies -p "$VSCE_PAT"
+        working-directory: packages/vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
