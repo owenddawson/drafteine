@@ -522,3 +522,72 @@ test("empty document parses to an empty tree", () => {
   assert.equal(root.children.length, 0);
   assert.equal(stats.errors, 0);
 });
+
+test("version pragma parses on the first content line", () => {
+  const res = parse("drafteine 1\n\nsrc/\n  main.ts\n");
+  assert.equal(res.version, 1);
+  assert.equal(res.lines[0].kind, "pragma");
+  assert.equal(res.stats.files, 1);
+  assert.equal(res.stats.errors, 0);
+  assert.equal(res.stats.warnings, 0);
+  // Header comments and blanks may precede the pragma.
+  assert.equal(parse("# contract\ndrafteine 1\nsrc/\n").version, 1);
+  // A BOM on line one is tolerated.
+  assert.equal(parse("﻿drafteine 1\nsrc/\n").version, 1);
+  // Absence means format 1, permanently.
+  assert.equal(parse("src/\n").version, 1);
+});
+
+test("newer declared format warns and still parses best-effort", () => {
+  const res = parse("drafteine 3 # future\nsrc/\n  main.ts\n");
+  assert.equal(res.version, 3);
+  assert.equal(res.stats.warnings, 1);
+  assert.equal(res.stats.errors, 0);
+  assert.equal(res.stats.files, 1);
+  // Trailing text after a newer version may be meaningful in that format:
+  // tolerated, covered by the newer-format warning alone.
+  const loose = parse("drafteine 2 beta\nsrc/\n");
+  assert.equal(loose.version, 2);
+  assert.equal(loose.stats.errors, 0);
+  assert.equal(loose.stats.warnings, 1);
+});
+
+test("malformed pragma diagnoses instead of becoming a file", () => {
+  for (const bad of ["drafteine 1.0\n", "drafteine 01\n", "drafteine 1 beta\n"]) {
+    const res = parse(bad + "src/\n");
+    assert.equal(res.lines[0].kind, "pragma", bad);
+    assert.ok(res.stats.errors > 0, bad);
+    assert.equal(res.stats.files, 0, bad);
+    assert.equal(res.version, 1, bad);
+  }
+  // A wordy name is not a pragma attempt.
+  const wordy = parse("drafteine notes.txt\n");
+  assert.equal(wordy.lines[0].kind, "file");
+  assert.equal(wordy.stats.errors, 0);
+});
+
+test("pragma-shaped line after content warns and parses as a file", () => {
+  const res = parse("src/\ndrafteine 2\n");
+  assert.equal(res.lines[1].kind, "file");
+  assert.equal(res.lines[1].name, "drafteine 2");
+  assert.equal(res.version, 1);
+  assert.equal(res.stats.warnings, 1);
+});
+
+test("a file genuinely named like a pragma quotes and round-trips", () => {
+  const res = parse('"drafteine 1"\n');
+  assert.equal(res.lines[0].kind, "file");
+  assert.equal(res.lines[0].name, "drafteine 1");
+  assert.equal(res.stats.warnings, 0);
+  assert.equal(quoteName("drafteine 1"), '"drafteine 1"');
+  assert.equal(format('"drafteine 1"\n'), '"drafteine 1"\n');
+});
+
+test("fmt canonicalizes the pragma and refuses newer formats", () => {
+  assert.equal(
+    format("drafteine   1   # keep this\nsrc/\n"),
+    "drafteine 1 # keep this\nsrc/\n"
+  );
+  const newer = "drafteine 9\nsrc/   \n";
+  assert.equal(format(newer), newer); // returned unchanged, the no-rewrite rule
+});

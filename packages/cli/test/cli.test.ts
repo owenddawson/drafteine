@@ -69,7 +69,7 @@ test("snapshot emits a draft that apply can round-trip", () => {
   fs.writeFileSync(path.join(dir, "app/src/main.ts"), "");
   fs.writeFileSync(path.join(dir, "app/README.md"), "");
   const out = run(["snapshot", dir]);
-  assert.equal(out, "app/\n  src/\n    main.ts\n  README.md\ndraft.dft\n");
+  assert.equal(out, "drafteine 1\n\napp/\n  src/\n    main.ts\n  README.md\ndraft.dft\n");
   // node_modules ignored by default, included with --all
   const all = run(["snapshot", dir, "--all"]);
   assert.match(all, /node_modules\//);

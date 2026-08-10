@@ -10,6 +10,7 @@
  *   line        := indent (comment | entry)?
  *   indent      := ("  " | "\t")*          -- one unit = 2 spaces or 1 tab
  *   comment     := "#" .*
+ *   pragma      := "drafteine" number      -- first content line only
  *   entry       := name "/"? annotation* trailing-comment?
  *   annotation  := whitespace "@" word ("(" value ")")?
  *
@@ -25,8 +26,15 @@ import {
   type Stats,
   type TreeNode,
 } from "./types.js";
+import { scanPragma } from "./pragma.js";
+import {
+  FORBIDDEN_NAME_CHARS,
+  NAME_BOUNDARY_RE,
+  QUOTED_NAME_RE,
+  unescape,
+} from "./names.js";
+export { needsQuoting, quoteName, quoteValue } from "./names.js";
 
-const FORBIDDEN_NAME_CHARS = /[\\:*?"<>|]/;
 /** Annotation key: @word. Values are scanned by scanAnnotation. */
 const ANNOTATION_KEY_RE = /^@([A-Za-z][\w-]*)/;
 
@@ -78,31 +86,6 @@ function scanAnnotation(
   const value = items.length === 0 ? "" : items.join(", ");
   return { key: m[1], value, values: items, end: i };
 }
-/** Bare name runs until whitespace followed by `@`, `#`, or `{`, or end of line. */
-const NAME_BOUNDARY_RE = /^(.*?)\s+(?=[@#{])/;
-/** Quoted name: "..." with \" and \\ escapes. */
-const QUOTED_NAME_RE = /^"((?:[^"\\]|\\.)*)"/;
-
-const unescape = (s: string): string => s.replace(/\\(.)/g, "$1");
-
-/** True when `name` needs quotes to round-trip through the grammar. */
-export function needsQuoting(name: string): boolean {
-  return name === "" || /^[#"\s]|\s$| @| #|\/$/.test(name);
-}
-
-/** Render a name in canonical source form (quoted only when necessary). */
-export function quoteName(name: string): string {
-  return needsQuoting(name)
-    ? `"${name.replace(/[\\"]/g, (ch) => "\\" + ch)}"`
-    : name;
-}
-
-export function quoteValue(v: string): string {
-  return /[)",\\]|^\s|\s$/.test(v)
-    ? `"${v.replace(/[\\"]/g, (ch) => "\\" + ch)}"`
-    : v;
-}
-
 export function parse(text: string): ParseResult {
   const rawLines = text.split("\n");
   const lines: Line[] = [];
@@ -126,6 +109,10 @@ export function parse(text: string): ParseResult {
   let docIndentUnit = 0;
   // The entry line whose `{ … }` block we are currently inside, if any.
   let blockOwner: Line | null = null;
+  // False until the first non-blank, non-comment line: the pragma position.
+  let seenContent = false;
+  // Format version from a valid pragma. Absent means 1, permanently.
+  let docVersion = 1;
 
   /** Scan annotations / trailing comment / `{` after a name or on a block line. */
   function scanTrailer(line: Line, raw: string, start: number, allowBrace: boolean): void {
@@ -229,6 +216,14 @@ export function parse(text: string): ParseResult {
       line.spans.comment = [line.from + pos, line.to];
       continue;
     }
+
+    // --- version pragma: first content line only -------------------------
+    if (!seenContent && indentEnd === 0 && scanPragma(line, raw, pos, diagnostics)) {
+      seenContent = true;
+      if (line.version !== undefined) docVersion = line.version;
+      continue;
+    }
+    seenContent = true;
 
     // --- inside a { } block --------------------------------------------
     if (blockOwner) {
@@ -392,6 +387,13 @@ export function parse(text: string): ParseResult {
         severity: "error",
         message: "“/” can only appear at the end of a folder name.",
       });
+    } else if (!rest.startsWith('"') && /^drafteine[ \t]+[0-9]+$/.test(name)) {
+      addError(line, diagnostics, {
+        from: nameSpan[0],
+        to: nameSpan[1],
+        severity: "warning",
+        message: `Looks like a version pragma, but only the first content line can be one. Parsed as a file named “${name}”. Quote the name if a file is intended.`,
+      });
     }
 
     // --- annotations, trailing comment, optional `{` --------------------
@@ -473,7 +475,14 @@ export function parse(text: string): ParseResult {
     else if (d.severity === "warning") stats.warnings++;
   }
 
-  return { lines, root, diagnostics, stats, indentUnit: docIndentUnit || INDENT_UNIT };
+  return {
+    lines,
+    root,
+    diagnostics,
+    stats,
+    indentUnit: docIndentUnit || INDENT_UNIT,
+    version: docVersion,
+  };
 }
 
 export function addError(line: Line, diagnostics: Diagnostic[], diag: Diagnostic): void {

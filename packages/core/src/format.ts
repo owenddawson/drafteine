@@ -2,6 +2,7 @@
  * The canonical formatter, plus an opt-in aligned house style.
  */
 import { parse, quoteName, quoteValue } from "./parser.js";
+import { SPEC_VERSION } from "./types.js";
 
 export interface FormatOptions {
   /**
@@ -35,6 +36,9 @@ const ALIGN_CAP = 48;
  */
 export function format(text: string, options: FormatOptions = {}): string {
   const res = parse(text);
+  // The no-rewrite rule: a draft declaring a newer format than this library
+  // implements is returned unchanged. Best-effort rewriting risks corruption.
+  if (res.version > SPEC_VERSION) return text;
   const items: Item[] = [];
   let blankRun = 0;
 
@@ -51,6 +55,13 @@ export function format(text: string, options: FormatOptions = {}): string {
     }
     if (line.errors.some((e) => e.severity === "error")) {
       items.push({ raw: line.raw.trimEnd() }); // leave broken lines exactly as written
+      continue;
+    }
+    if (line.kind === "pragma") {
+      const comment = line.spans.comment
+        ? " " + line.raw.slice(line.spans.comment[0] - line.from).trimEnd()
+        : "";
+      items.push({ raw: `drafteine ${line.version}` + comment });
       continue;
     }
     if (line.kind === "annotation" || line.kind === "block-end") {

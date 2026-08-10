@@ -218,6 +218,22 @@ connection.onHover((params): Hover | null => {
   const line = result.lines[params.position.line];
   if (!line) return null;
 
+  if (line.kind === "pragma" && line.version !== undefined) {
+    return {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value:
+          `**drafteine ${line.version}**\n\nFormat version pragma. Declares which ` +
+          `Drafteine format this draft is written in. Optional: a draft without ` +
+          `one is read as format 1. Only the first content line can be a pragma.`,
+      },
+      range: {
+        start: doc.positionAt(line.from),
+        end: doc.positionAt(line.spans.version ? line.spans.version[1] : line.to),
+      },
+    };
+  }
+
   const ann = line.annotations.find((a) => offset >= a.from && offset <= a.to);
   if (ann) {
     const md = hoverDoc(ann.key) ?? customAnnotations()[ann.key]?.doc;

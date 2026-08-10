@@ -5,6 +5,10 @@
 
 export const INDENT_UNIT = 2;
 
+/** The Drafteine format version this library implements. Drafts may declare
+ *  theirs with a `drafteine 1` pragma. Absent means 1, permanently. */
+export const SPEC_VERSION = 1;
+
 export type Severity = "error" | "warning" | "info";
 
 export interface Diagnostic {
@@ -20,7 +24,8 @@ export type LineKind =
   | "folder"
   | "file"
   | "annotation"
-  | "block-end";
+  | "block-end"
+  | "pragma";
 
 export interface Annotation {
   key: string;
@@ -45,10 +50,12 @@ export interface Line {
   isFolder: boolean;
   annotations: Annotation[];
   errors: Diagnostic[];
-  spans: { name?: [number, number]; comment?: [number, number] };
+  spans: { name?: [number, number]; comment?: [number, number]; version?: [number, number] };
   node?: TreeNode;
   /** True when this entry line opens a `{ … }` annotation block. */
   opensBlock?: boolean;
+  /** Declared format version. Set only on a valid pragma line. */
+  version?: number;
 }
 
 export interface TreeNode {
@@ -77,6 +84,9 @@ export interface ParseResult {
   stats: Stats;
   /** Spaces per indent level detected in this document (default 2). */
   indentUnit: number;
+  /** Format version the draft declares via its pragma. A draft without a
+   *  pragma is format 1, permanently, so old drafts never change meaning. */
+  version: number;
 }
 
 export interface PlanOp {

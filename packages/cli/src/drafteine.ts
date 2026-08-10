@@ -33,6 +33,7 @@ import {
   acceptViolations,
   applyProfiles,
   validateVocabulary,
+  SPEC_VERSION,
   type ApplyIO,
   type CheckIO,
   type ParseResult,
@@ -167,7 +168,7 @@ if (command === "snapshot") {
   const lines: string[] = [];
   snapshotWalk(dir, 0, lines, "");
   if (lines.length === 0) console.error(dim("# (empty directory)"));
-  else console.log(lines.join("\n"));
+  else console.log(["drafteine 1", ""].concat(lines).join("\n"));
   process.exit(0);
 }
 
@@ -326,6 +327,19 @@ for (const d of result.diagnostics) {
   const tag =
     d.severity === "error" ? red("error") : d.severity === "warning" ? amber("warning") : dim("info");
   console.error(`${dim(where)} ${tag} ${d.message}`);
+}
+
+// The no-rewrite rule: reading a newer format degrades gracefully, but
+// rewriting the draft or materializing from a possible misread does not.
+if (
+  result.version > SPEC_VERSION &&
+  (command === "fmt" || command === "accept" || (command === "apply" && !args.dryRun))
+) {
+  fail(
+    `${displayName} declares Drafteine format ${result.version}. This tool implements format ${SPEC_VERSION} and will not ${
+      command === "fmt" ? "reformat" : command === "accept" ? "amend" : "materialize"
+    } it. Upgrade drafteine.`
+  );
 }
 
 /* ---------------- codeowners: emit ownership from @owner --------------- */

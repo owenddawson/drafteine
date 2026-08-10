@@ -1,3 +1,5 @@
+drafteine 1
+
 # Drafteine's own structure contract, and a working tour of the language.
 # Checked continuously by the VS Code extension and by: drafteine check --all
 # Membership drift reconciles with: drafteine accept structure.dft
@@ -9,6 +11,8 @@ packages/ @owner(core) @strict @count(6) # one folder per published package
       index.ts # barrel re-export, the public API
       types.ts # shared types for every module
       parser.ts # grammar, diagnostics, error recovery
+      pragma.ts @since(0.15.0) # the version pragma, first content line only
+      names.ts @since(0.15.0) # name rules, quoting, canonical forms
       plan.ts # draft to ordered filesystem operations
       apply.ts @since(0.8.0) # materialization with template preflight
       vocabulary.ts # declared custom annotation validation

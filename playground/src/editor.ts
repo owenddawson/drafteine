@@ -61,6 +61,15 @@ function buildDecorations(result: ParseResult): DecorationSet {
       }
       continue;
     }
+    if (line.kind === "pragma") {
+      const end = line.spans.version ? line.spans.version[1] : line.to;
+      if (line.from < end) builder.add(line.from, end, mark.annotation);
+      if (line.spans.comment) {
+        const [from, to] = line.spans.comment;
+        if (from < to) builder.add(from, to, mark.comment);
+      }
+      continue;
+    }
     if (line.kind !== "folder" && line.kind !== "file") continue;
 
     const [nameFrom, nameTo] = line.spans.name!;

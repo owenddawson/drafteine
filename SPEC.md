@@ -11,10 +11,43 @@ A document is a sequence of lines. Each line is one of:
 
 | Line | Meaning |
 |---|---|
+| `drafteine 1` | the **version pragma** (first content line only) |
 | `name/` | a **folder** (trailing slash) |
 | `name` | a **file** (anything without a trailing slash) |
 | `# text` | a **comment** — structurally invisible |
 | *(blank)* | ignored |
+
+## Version pragma
+
+A draft may declare its format with `drafteine <number>` as the **first
+non-blank, non-comment line**, unindented. A trailing `# comment` may
+follow the number. The version is a whole number with no leading zeros,
+bumped only on breaking grammar or semantics changes.
+
+```
+drafteine 1
+
+src/
+  main.ts
+```
+
+- The pragma is **optional, and absence means format 1 — permanently.**
+  An unversioned draft never changes meaning when the format grows.
+- A draft declaring a **newer** format than the tool implements draws a
+  warning and is read best-effort (per the error-tolerance rules). But
+  verbs that rewrite the draft or act on it (`fmt`, `accept`, `apply`)
+  **refuse**: best-effort reading is graceful degradation, best-effort
+  rewriting is corruption. Text after a newer version number is tolerated,
+  it may be meaningful in that format.
+- A first content line shaped like `drafteine <digit>…` that fails the
+  form (`drafteine 1.0`, `drafteine 01`) is a **malformed pragma error**,
+  never silently a file. Elsewhere in the document, a line matching the
+  pragma shape parses as a file with a warning. A real file named
+  `drafteine 1` is declared by quoting: `"drafteine 1"` — `fmt` quotes
+  such names automatically.
+- Tools never insert a missing pragma into an existing draft; `fmt` only
+  canonicalizes one already present. Generated drafts (`init`,
+  `snapshot`) start with `drafteine 1`.
 
 ## Nesting
 
@@ -121,6 +154,9 @@ dropped from the preview — they render in place, flagged. The rules:
    name span.
 5. **Duplicate sibling names** — warning; both stay in the tree.
 6. **Unrecognized trailing text** — error on the remainder of the line.
+7. **Malformed version pragma** — error; the line is consumed as a pragma
+   and never becomes a file. A pragma-shaped line after the first content
+   line is a warning and parses as a file.
 
 **Only clean lines reach the materialization plan.** An error anywhere on a
 line excludes that line (and, for a folder, everything it would contain is

@@ -4,6 +4,14 @@
   "scopeName": "source.drafteine",
   "patterns": [
     {
+      "comment": "Version pragma (first content line)",
+      "match": "^(drafteine)[ \\t]+([0-9]+)(?=[ \\t]|$)",
+      "captures": {
+        "1": { "name": "keyword.control.pragma.drafteine" },
+        "2": { "name": "constant.numeric.version.drafteine" }
+      }
+    },
+    {
       "comment": "Full-line or trailing comment (whitespace-preceded #)",
       "match": "(?:^|\\s)(#.*)$",
       "captures": {

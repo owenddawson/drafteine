@@ -110,7 +110,7 @@ export function activate(
       const result = parse(doc.getText());
       const ranges: Range[] = [];
       for (const line of result.lines) {
-        if (line.kind === "annotation" || line.kind === "block-end") {
+        if (line.kind === "annotation" || line.kind === "block-end" || line.kind === "pragma") {
           ranges.push(doc.lineAt(line.lineNo).range);
           continue;
         }

@@ -3,6 +3,16 @@
 Granular per-release history begins with the first published release.
 Everything below was built pre-release.
 
+## 0.15.0 (unreleased)
+
+**Language.** Version pragma: `drafteine 1` as the first content line
+declares the draft's format version. Optional, and absence means format 1
+permanently. Newer-format drafts parse best-effort with a warning, while
+`fmt`, `accept`, and `apply` refuse to act on them (the no-rewrite rule).
+Malformed pragmas diagnose instead of silently parsing as files, and
+pragma-shaped names quote to stay files. `init` and `snapshot` emit the
+pragma in generated drafts.
+
 ## 0.14.0 (pre-release state)
 
 **Language.** Indentation-driven tree grammar with unit inference, quoting,
