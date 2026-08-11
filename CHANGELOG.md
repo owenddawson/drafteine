@@ -41,6 +41,10 @@ feeds GitHub code scanning, both locating violations at the declaring
 draft line. A reusable GitHub Action (`action.yml`) runs `check --all`
 on pull requests.
 
+**Check.** `allow: *` on a strict folder is now a violation: a seal
+that tolerates everything is a contradiction, and silently neutering
+strict is the classic enforcement bypass.
+
 **Tooling.** Parser, formatter, LSP (container-aware completions, preset
 name completion after `preset:`, filesystem-aware name and path
 completion in entry position), TextMate grammar, playground, and the

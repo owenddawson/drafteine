@@ -261,6 +261,19 @@ export function runCheck(root: TreeNode, io: CheckIO): Violation[] {
       if (has(child, "strict")) {
         const declared = new Set(child.children.map((x) => x.name));
         const allow = child.annotations.find((a) => a.key === "allow");
+        // A strict folder tolerating everything is a contradiction, and
+        // the classic silent bypass. Loosening must be legible: remove
+        // strict instead of neutering it.
+        for (const pattern of allow?.values ?? []) {
+          if (pattern === "*" || pattern === "**") {
+            violations.push({
+              path: p,
+              kind: "bad-annotation",
+              message: `${p}: allow: ${pattern} tolerates everything and makes strict meaningless. Remove strict instead.`,
+              node: child,
+            });
+          }
+        }
         const matchers = (allow?.values ?? []).map(globMatcher);
         for (const entry of io.readdir(p)) {
           if (declared.has(entry)) continue;

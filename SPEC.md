@@ -273,6 +273,10 @@ or a contract — *the verb decides what the document means*.
   slash makes a pattern match directories only, and an admitted
   directory's contents stay unchecked unless separately drafted.
   Tolerated file extras still honor the folder's metric defaults.
+  `allow: *` on a strict folder is a violation: a seal that tolerates
+  everything is a contradiction, and silently neutering `strict` is the
+  classic enforcement bypass. Remove `strict` instead — loosening must
+  be legible.
 - `?` marks an entry check won't require (but `apply` still creates).
   If an optional entry **is** present, it must still conform — type,
   metrics, and its subtree are checked normally.

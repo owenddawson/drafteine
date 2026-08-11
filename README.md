@@ -199,6 +199,45 @@ checked.
 Structure changes then arrive as reviewable `structure.dft` diffs, and
 `drafteine accept` stays a human decision.
 
+**The escalation protocol.** A violation splits into exactly two cases,
+and a well-behaved agent handles each differently. If reality can
+conform — split the oversized file, move the stray into the contract —
+the agent fixes it inside the turn. If conforming would mean *changing
+the contract* — a new folder the plan never imagined, a ceiling that is
+genuinely too tight — the agent stops and asks, citing the draft line:
+"src/api is strict (structure.dft:12). May I declare handlers.ts, or
+should this live elsewhere?" Contracts make agents predictable in both
+directions: mechanical fixes happen without you, architectural
+decisions come back *as questions* instead of as surprises in the diff.
+`drafteine explain <path>` gives the agent the rule and its source, so
+its question arrives well-formed.
+
+## Adopting gradually
+
+Drafteine is open world by default: **nothing is enforced until you ask
+for it**, and a contract can govern three folders in a monorepo of
+thousands. The comfortable path:
+
+1. **Day one, enforce nothing.** Prototype freely. No contract, no
+   opinions, no Problems-panel noise over a scratch `test_v2.ts`.
+2. **When the shape settles, snapshot it.** `drafteine snapshot . >
+   structure.dft` turns today's reality into a contract in one command.
+   Undeclared extras are still fine — a bare contract only requires
+   that declared things exist.
+3. **Tighten only where sprawl hurts.** `{ strict }` on the folders
+   that must not grow unreviewed, `{ max-lines: 400 }` where files
+   bloat, `ban: [*.bak]` on the dumping grounds, a `?` on anything
+   experimental. A sparse path line (`src/core/engine.ts
+   { max-lines: 500 }`) governs one hot spot and nothing else.
+4. **Let `accept` absorb honest drift.** Membership changes reconcile
+   in one command and show up as a reviewable diff. Policy never
+   auto-weakens — and `allow: *` on a strict folder is a violation, not
+   a loophole, so the contract can't quietly rot into decoration.
+
+Rule of thumb: enforcement should trail architecture, never lead it.
+Lock down what is stable, leave the frontier open, and move the fence
+as the settlement grows.
+
 ## The VS Code extension
 
 `packages/vscode-extension` — packaged as `drafteine-*.vsix`

@@ -94,3 +94,14 @@ test("plan never creates banned entries, at any depth", () => {
   const ops = plan(r.root).map((o) => o.path);
   assert.deepEqual(ops, ["v/", "v/sub/", "v/sub/c.ts"]);
 });
+
+test("allow: * on a strict folder is a contradiction, not a loophole", () => {
+  const r = parse("src/ { strict, allow: [*] }\n");
+  const vs = runCheck(r.root, worldIO({ src: "dir", "src/anything.ts": "file" }));
+  assert.equal(vs.length, 1);
+  assert.equal(vs[0].kind, "bad-annotation");
+  assert.match(vs[0].message, /makes strict meaningless/);
+  // Ordinary narrow patterns stay silent.
+  const ok = parse("src/ { strict, allow: [*.gen.ts] }\n");
+  assert.equal(runCheck(ok.root, worldIO({ src: "dir" })).length, 0);
+});
