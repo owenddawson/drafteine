@@ -182,11 +182,16 @@ checked.
      "hooks": {
        "Stop": [
          { "hooks": [{ "type": "command",
-             "command": "npx --yes drafteine check --all 1>&2 || exit 2" }] }
+             "command": "jq -e .stop_hook_active >/dev/null && exit 0; npx --yes drafteine check --all 1>&2 || exit 2" }] }
        ]
      }
    }
    ```
+
+   The `stop_hook_active` guard bounds the loop: the agent gets exactly
+   one forced repair pass per turn. If a violation needs a human
+   decision, the turn ends with the report in front of you instead of
+   the agent burning tokens against a wall.
 
 4. **Backstop in CI.** The action above catches whatever slips through,
    on every pull request, human or agent.
